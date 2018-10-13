@@ -65,13 +65,13 @@ func (r *Reader) ReadFrame() (frame Frame, err error) {
 		} else {
 			var header *Header
 
-			header, err = ReadHeader(r.Reader)
+			header, err = readHeader(r.Reader)
 
 			if err != nil {
 				return
 			}
 
-			frame, err = ReadFrame(r.buf, header)
+			frame, err = readFrame(r.buf, header)
 
 			r.buf = nil
 

@@ -11,11 +11,11 @@ type PayloadFrame struct {
 	Data     []byte
 }
 
-func ReadPayloadFrame(r io.Reader, header *Header) (frame *PayloadFrame, err error) {
+func readPayloadFrame(r io.Reader, header *Header) (frame *PayloadFrame, err error) {
 	var metadata, data []byte
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}

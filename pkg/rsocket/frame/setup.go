@@ -22,7 +22,7 @@ type SetupFrame struct {
 	Data             []byte
 }
 
-func ReadSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) {
+func readSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) {
 	var major, minor uint16
 	var keepalive, maxLifetime uint32
 	var resumeToken Token
@@ -44,7 +44,7 @@ func ReadSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) 
 	}
 
 	if header.HasResumeToken() {
-		if resumeToken, err = ReadToken(r); err != nil {
+		if resumeToken, err = readToken(r); err != nil {
 			return
 		}
 	}
@@ -76,7 +76,7 @@ func ReadSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) 
 	dataMimeType = string(buf)
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}

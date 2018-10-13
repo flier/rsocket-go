@@ -15,11 +15,11 @@ type RequestResponseFrame struct {
 	Data     []byte
 }
 
-func ReadRequestResponseFrame(r io.Reader, header *Header) (frame *RequestResponseFrame, err error) {
+func readRequestResponseFrame(r io.Reader, header *Header) (frame *RequestResponseFrame, err error) {
 	var metadata, data []byte
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}
@@ -71,11 +71,11 @@ type RequestFireAndForgetFrame struct {
 	Data     []byte
 }
 
-func ReadRequestFireAndForgetFrame(r io.Reader, header *Header) (frame *RequestFireAndForgetFrame, err error) {
+func readRequestFireAndForgetFrame(r io.Reader, header *Header) (frame *RequestFireAndForgetFrame, err error) {
 	var metadata, data []byte
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}
@@ -128,7 +128,7 @@ type RequestStreamFrame struct {
 	Data            []byte
 }
 
-func ReadRequestStreamFrame(r io.Reader, header *Header) (frame *RequestStreamFrame, err error) {
+func readRequestStreamFrame(r io.Reader, header *Header) (frame *RequestStreamFrame, err error) {
 	var initReqs uint32
 	var metadata, data []byte
 
@@ -137,7 +137,7 @@ func ReadRequestStreamFrame(r io.Reader, header *Header) (frame *RequestStreamFr
 	}
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}
@@ -197,7 +197,7 @@ type RequestChannelFrame struct {
 	Data            []byte
 }
 
-func ReadRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannelFrame, err error) {
+func readRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannelFrame, err error) {
 	var initReqs uint32
 	var metadata, data []byte
 
@@ -206,7 +206,7 @@ func ReadRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannel
 	}
 
 	if header.HasMetadata() {
-		if metadata, err = ReadMetadata(r); err != nil {
+		if metadata, err = readMetadata(r); err != nil {
 			return
 		}
 	}
@@ -264,7 +264,7 @@ type RequestNFrame struct {
 	Requests uint32
 }
 
-func ReadRequestNFrame(r io.Reader, header *Header) (frame *RequestNFrame, err error) {
+func readRequestNFrame(r io.Reader, header *Header) (frame *RequestNFrame, err error) {
 	var reqs uint32
 
 	if err = binary.Read(r, binary.BigEndian, &reqs); err != nil {

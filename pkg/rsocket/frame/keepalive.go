@@ -16,7 +16,7 @@ type KeepaliveFrame struct {
 	Data         []byte
 }
 
-func ReadKeepaliveFrame(r io.Reader, header *Header) (frame *KeepaliveFrame, err error) {
+func readKeepaliveFrame(r io.Reader, header *Header) (frame *KeepaliveFrame, err error) {
 	var lastReceived uint64
 	var data []byte
 

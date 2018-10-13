@@ -6,7 +6,7 @@ type CancelFrame struct {
 	*Header
 }
 
-func ReadCancelFrame(r io.Reader, header *Header) (*CancelFrame, error) {
+func readCancelFrame(r io.Reader, header *Header) (*CancelFrame, error) {
 	return &CancelFrame{header}, nil
 }
 

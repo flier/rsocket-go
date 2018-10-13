@@ -7,7 +7,7 @@ import (
 
 type Metadata []byte
 
-func ReadMetadata(r io.Reader) (metadata Metadata, err error) {
+func readMetadata(r io.Reader) (metadata Metadata, err error) {
 	var len uint32
 
 	len, err = readUInt24(r, binary.BigEndian)

@@ -10,41 +10,47 @@ var ErrUnknownType = errors.New("unknown frame type")
 type Frame interface {
 	io.WriterTo
 
+	StreamId() StreamId
+
+	Type() Type
+
+	Flags() Flags
+
 	Size() int
 }
 
-func ReadFrame(r io.Reader, header *Header) (Frame, error) {
-	switch header.FrameType {
+func readFrame(r io.Reader, header *Header) (Frame, error) {
+	switch header.Type() {
 	case TypeSetup:
-		return ReadSetupFrame(r, header)
+		return readSetupFrame(r, header)
 	case TypeLease:
-		return ReadLeaseFrame(r, header)
+		return readLeaseFrame(r, header)
 	case TypeKeepalive:
-		return ReadKeepaliveFrame(r, header)
+		return readKeepaliveFrame(r, header)
 	case TypeRequestResponse:
-		return ReadRequestResponseFrame(r, header)
+		return readRequestResponseFrame(r, header)
 	case TypeRequestFireAndForget:
-		return ReadRequestFireAndForgetFrame(r, header)
+		return readRequestFireAndForgetFrame(r, header)
 	case TypeRequestStream:
-		return ReadRequestStreamFrame(r, header)
+		return readRequestStreamFrame(r, header)
 	case TypeRequestChannel:
-		return ReadRequestChannelFrame(r, header)
+		return readRequestChannelFrame(r, header)
 	case TypeRequestN:
-		return ReadRequestNFrame(r, header)
+		return readRequestNFrame(r, header)
 	case TypeCancel:
-		return ReadCancelFrame(r, header)
+		return readCancelFrame(r, header)
 	case TypePayload:
-		return ReadPayloadFrame(r, header)
+		return readPayloadFrame(r, header)
 	case TypeError:
-		return ReadErrorFrame(r, header)
+		return readErrorFrame(r, header)
 	case TypeMetadataPush:
-		return ReadMetadataPushFrame(r, header)
+		return readMetadataPushFrame(r, header)
 	case TypeResume:
-		return ReadResumeFrame(r, header)
+		return readResumeFrame(r, header)
 	case TypeResumeOk:
-		return ReadResumeOkFrame(r, header)
+		return readResumeOkFrame(r, header)
 	case TypeExtension:
-		return ReadExtensionFrame(r, header)
+		return readExtensionFrame(r, header)
 	default:
 		return nil, ErrUnknownType
 	}

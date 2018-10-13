@@ -15,7 +15,7 @@ type ResumeFrame struct {
 	FirstAvailable Position // The earliest position that the client can rewind back to prior to resending frames.
 }
 
-func ReadResumeFrame(r io.Reader, header *Header) (frame *ResumeFrame, err error) {
+func readResumeFrame(r io.Reader, header *Header) (frame *ResumeFrame, err error) {
 	var major, minor uint16
 	var resumeToken []byte
 	var lastReceived, firstAvailable uint64
@@ -27,13 +27,7 @@ func ReadResumeFrame(r io.Reader, header *Header) (frame *ResumeFrame, err error
 		return
 	}
 
-	var tokenLen uint16
-
-	if err = binary.Read(r, binary.BigEndian, &tokenLen); err != nil {
-		return
-	}
-
-	if resumeToken, err = readExact(r, int(tokenLen)); err != nil {
+	if resumeToken, err = readToken(r); err != nil {
 		return
 	}
 
@@ -100,7 +94,7 @@ type ResumeOkFrame struct {
 	LastReceived Position // The last implied position the server received from the client.
 }
 
-func ReadResumeOkFrame(r io.Reader, header *Header) (frame *ResumeOkFrame, err error) {
+func readResumeOkFrame(r io.Reader, header *Header) (frame *ResumeOkFrame, err error) {
 	var lastReceived uint64
 
 	if err = binary.Read(r, binary.BigEndian, &lastReceived); err != nil {

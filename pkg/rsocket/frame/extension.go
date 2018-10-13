@@ -14,7 +14,7 @@ type ExtensionFrame struct {
 	Data         []byte
 }
 
-func ReadExtensionFrame(r io.Reader, header *Header) (frame *ExtensionFrame, err error) {
+func readExtensionFrame(r io.Reader, header *Header) (frame *ExtensionFrame, err error) {
 	var extType uint32
 	var data []byte
 

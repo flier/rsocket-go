@@ -19,7 +19,7 @@ func NewToken() Token {
 	return token
 }
 
-func ReadToken(r io.Reader) (token Token, err error) {
+func readToken(r io.Reader) (token Token, err error) {
 	var len uint16
 
 	if err = binary.Read(r, binary.BigEndian, &len); err != nil {

@@ -17,7 +17,7 @@ type LeaseFrame struct {
 	Metadata         Metadata
 }
 
-func ReadLeaseFrame(r io.Reader, header *Header) (frame *LeaseFrame, err error) {
+func readLeaseFrame(r io.Reader, header *Header) (frame *LeaseFrame, err error) {
 	var ttl, numOfReqs uint32
 	var metadata Metadata
 

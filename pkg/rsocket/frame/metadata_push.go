@@ -10,7 +10,7 @@ type MetadataPushFrame struct {
 	Metadata Metadata
 }
 
-func ReadMetadataPushFrame(r io.Reader, header *Header) (frame *MetadataPushFrame, err error) {
+func readMetadataPushFrame(r io.Reader, header *Header) (frame *MetadataPushFrame, err error) {
 	var metadata Metadata
 
 	if metadata, err = ioutil.ReadAll(r); err != nil {

@@ -47,7 +47,7 @@ type ErrorFrame struct {
 	Data string
 }
 
-func ReadErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) {
+func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) {
 	var code uint32
 	var data []byte
 
