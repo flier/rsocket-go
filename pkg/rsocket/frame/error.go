@@ -2,6 +2,7 @@ package frame
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -38,8 +39,38 @@ const (
 	// have been started). Stream ID MUST be non-0.
 	ErrCanceled ErrorCode = 0x00000203
 	// The request is invalid. Stream ID MUST be non-0.
-	ErrInvalid ErrorCode = 0x00000204
+	ErrInvalid   ErrorCode = 0x00000204
+	ErrExtension ErrorCode = 0xFFFFFFFF
 )
+
+func (code ErrorCode) String() string {
+	switch code {
+	case ErrReserved:
+		return "RESERVED"
+	case ErrInvalidSetup:
+		return "INVALID_SETUP"
+	case ErrUnsupportedSetup:
+		return "UNSUPPORTED_SETUP"
+	case ErrRejectedSetup:
+		return "REJECTED_SETUP"
+	case ErrRejectedResume:
+		return "REJECTED_RESUME"
+	case ErrConnectionError:
+		return "CONNECTION_ERROR"
+	case ErrApplicationError:
+		return "APPLICATION_ERROR"
+	case ErrRejected:
+		return "REJECTED"
+	case ErrCanceled:
+		return "CANCELED"
+	case ErrInvalid:
+		return "INVALID"
+	case ErrExtension:
+		return "EXT"
+	default:
+		return fmt.Sprintf("%08x", uint32(code))
+	}
+}
 
 type ErrorFrame struct {
 	*Header
@@ -66,6 +97,10 @@ func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) 
 	}
 
 	return
+}
+
+func (err *ErrorFrame) Err() error {
+	return fmt.Errorf("ERROR[%s] %s", err.Code, err.Data)
 }
 
 func (frame *ErrorFrame) Size() int {

@@ -79,3 +79,11 @@ func (header *Header) HasMetadata() bool {
 func (header *Header) HasResumeToken() bool {
 	return header.flags.IsSet(FlagResumeEnable)
 }
+
+func (header *Header) Next() bool {
+	return header.flags.IsSet(FlagNext)
+}
+
+func (header *Header) Complete() bool {
+	return header.flags.IsSet(FlagComplete)
+}

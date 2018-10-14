@@ -22,6 +22,43 @@ type SetupFrame struct {
 	Data             []byte
 }
 
+func NewSetupFrame(
+	version Version,
+	lease bool,
+	keepalive time.Duration,
+	maxLifetime time.Duration,
+	resumeToken Token,
+	metadataMimeType string,
+	dataMimeType string,
+	hasMetadata bool,
+	metadata Metadata,
+	data []byte,
+) *SetupFrame {
+	var flags Flags
+
+	if hasMetadata {
+		flags.Set(FlagMetadata)
+	}
+	if len(resumeToken) > 0 {
+		flags.Set(FlagResumeEnable)
+	}
+	if lease {
+		flags.Set(FlagLease)
+	}
+
+	return &SetupFrame{
+		&Header{0, TypeSetup, flags},
+		version,
+		keepalive,
+		maxLifetime,
+		resumeToken,
+		metadataMimeType,
+		dataMimeType,
+		metadata,
+		data,
+	}
+}
+
 func readSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) {
 	var major, minor uint16
 	var keepalive, maxLifetime uint32

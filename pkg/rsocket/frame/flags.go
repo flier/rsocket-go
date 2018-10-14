@@ -13,6 +13,10 @@ const (
 	FlagNext             Flags = 0x0020 // Indicate Next (Payload Data and/or Metadata present).
 )
 
+func (flags Flags) Set(flag Flags) {
+	flags |= flag
+}
+
 func (flags Flags) IsSet(flag Flags) bool {
 	return flags&flag == flag
 }

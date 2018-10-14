@@ -1,6 +1,10 @@
 package frame
 
-type Type = byte
+import (
+	"fmt"
+)
+
+type Type byte
 
 const (
 	TypeReserved             Type = iota
@@ -20,3 +24,42 @@ const (
 	TypeResumeOk                         // Sent in response to a RESUME if resuming operation possible (optional)
 	TypeExtension            Type = 0x3F // Used To Extend more frame types as well as extensions.
 )
+
+func (t Type) String() string {
+	switch t {
+	case TypeReserved:
+		return "RESERVED"
+	case TypeSetup:
+		return "SETUP"
+	case TypeLease:
+		return "LEASE"
+	case TypeKeepalive:
+		return "KEEPALIVE"
+	case TypeRequestResponse:
+		return "REQUEST_RESPONSE"
+	case TypeRequestFireAndForget:
+		return "REQUEST_FNF"
+	case TypeRequestStream:
+		return "REQUEST_STREAM"
+	case TypeRequestChannel:
+		return "REQUEST_CHANNEL"
+	case TypeRequestN:
+		return "REQUEST_N"
+	case TypeCancel:
+		return "CANCEL"
+	case TypePayload:
+		return "PAYLOAD"
+	case TypeError:
+		return "ERROR"
+	case TypeMetadataPush:
+		return "METADATA_PUSH"
+	case TypeResume:
+		return "RESUME"
+	case TypeResumeOk:
+		return "RESUME_OK"
+	case TypeExtension:
+		return "EXT"
+	default:
+		return fmt.Sprintf("TYPE[%d]", uint8(t))
+	}
+}

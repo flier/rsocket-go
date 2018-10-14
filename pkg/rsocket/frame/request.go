@@ -15,6 +15,27 @@ type RequestResponseFrame struct {
 	Data     []byte
 }
 
+func NewRequestResponseFrame(streamId StreamId, follows bool,
+	hasMetadata bool,
+	metadata Metadata,
+	data []byte,
+) *RequestResponseFrame {
+	var flags Flags
+
+	if hasMetadata {
+		flags.Set(FlagMetadata)
+	}
+	if follows {
+		flags.Set(FlagFollows)
+	}
+
+	return &RequestResponseFrame{
+		&Header{streamId, TypeRequestResponse, flags},
+		metadata,
+		data,
+	}
+}
+
 func readRequestResponseFrame(r io.Reader, header *Header) (frame *RequestResponseFrame, err error) {
 	var metadata, data []byte
 
@@ -69,6 +90,27 @@ type RequestFireAndForgetFrame struct {
 	*Header
 	Metadata Metadata
 	Data     []byte
+}
+
+func NewRequestFireAndForgetFrame(streamId StreamId, follows bool,
+	hasMetadata bool,
+	metadata Metadata,
+	data []byte,
+) *RequestFireAndForgetFrame {
+	var flags Flags
+
+	if hasMetadata {
+		flags.Set(FlagMetadata)
+	}
+	if follows {
+		flags.Set(FlagFollows)
+	}
+
+	return &RequestFireAndForgetFrame{
+		&Header{streamId, TypeRequestFireAndForget, flags},
+		metadata,
+		data,
+	}
 }
 
 func readRequestFireAndForgetFrame(r io.Reader, header *Header) (frame *RequestFireAndForgetFrame, err error) {
