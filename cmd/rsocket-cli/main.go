@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"net/url"
-	"os"
 
 	"github.com/flier/rsocket-go/pkg/rsocket/client"
 	"github.com/mkideal/cli"
@@ -46,7 +45,7 @@ func (opts *Opts) Validate(ctx *cli.Context) error {
 }
 
 func main() {
-	os.Exit(cli.Run(new(Opts), func(ctx *cli.Context) (err error) {
+	cli.Run(new(Opts), func(ctx *cli.Context) (err error) {
 		var logger *zap.Logger
 
 		opts := ctx.Argv().(*Opts)
@@ -92,5 +91,5 @@ func main() {
 		}
 
 		return nil
-	}, "CLI for RSocket."))
+	}, "CLI for RSocket.")
 }

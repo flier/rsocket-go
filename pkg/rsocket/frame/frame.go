@@ -10,7 +10,7 @@ var ErrUnknownType = errors.New("unknown frame type")
 type Frame interface {
 	io.WriterTo
 
-	StreamId() StreamId
+	StreamID() StreamID
 
 	Type() Type
 

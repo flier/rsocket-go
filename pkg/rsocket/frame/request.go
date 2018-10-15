@@ -15,7 +15,9 @@ type RequestResponseFrame struct {
 	Data     []byte
 }
 
-func NewRequestResponseFrame(streamId StreamId, follows bool,
+func NewRequestResponseFrame(
+	streamID StreamID,
+	follows bool,
 	hasMetadata bool,
 	metadata Metadata,
 	data []byte,
@@ -30,7 +32,7 @@ func NewRequestResponseFrame(streamId StreamId, follows bool,
 	}
 
 	return &RequestResponseFrame{
-		&Header{streamId, TypeRequestResponse, flags},
+		&Header{streamID, TypeRequestResponse, flags},
 		metadata,
 		data,
 	}
@@ -92,7 +94,9 @@ type RequestFireAndForgetFrame struct {
 	Data     []byte
 }
 
-func NewRequestFireAndForgetFrame(streamId StreamId, follows bool,
+func NewRequestFireAndForgetFrame(
+	streamID StreamID,
+	follows bool,
 	hasMetadata bool,
 	metadata Metadata,
 	data []byte,
@@ -107,7 +111,7 @@ func NewRequestFireAndForgetFrame(streamId StreamId, follows bool,
 	}
 
 	return &RequestFireAndForgetFrame{
-		&Header{streamId, TypeRequestFireAndForget, flags},
+		&Header{streamID, TypeRequestFireAndForget, flags},
 		metadata,
 		data,
 	}
@@ -168,6 +172,31 @@ type RequestStreamFrame struct {
 	InitialRequests uint32
 	Metadata        Metadata
 	Data            []byte
+}
+
+func NewRequestStreamFrame(
+	streamID StreamID,
+	follows bool,
+	initReqs uint32,
+	hasMetadata bool,
+	metadata Metadata,
+	data []byte,
+) *RequestStreamFrame {
+	var flags Flags
+
+	if hasMetadata {
+		flags.Set(FlagMetadata)
+	}
+	if follows {
+		flags.Set(FlagFollows)
+	}
+
+	return &RequestStreamFrame{
+		&Header{streamID, TypeRequestStream, flags},
+		initReqs,
+		metadata,
+		data,
+	}
 }
 
 func readRequestStreamFrame(r io.Reader, header *Header) (frame *RequestStreamFrame, err error) {
@@ -237,6 +266,31 @@ type RequestChannelFrame struct {
 	InitialRequests uint32
 	Metadata        Metadata
 	Data            []byte
+}
+
+func NewRequestChannelFrame(
+	streamID StreamID,
+	follows bool,
+	initReqs uint32,
+	hasMetadata bool,
+	metadata Metadata,
+	data []byte,
+) *RequestChannelFrame {
+	var flags Flags
+
+	if hasMetadata {
+		flags.Set(FlagMetadata)
+	}
+	if follows {
+		flags.Set(FlagFollows)
+	}
+
+	return &RequestChannelFrame{
+		&Header{streamID, TypeRequestChannel, flags},
+		initReqs,
+		metadata,
+		data,
+	}
 }
 
 func readRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannelFrame, err error) {

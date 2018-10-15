@@ -5,24 +5,24 @@ import (
 	"io"
 )
 
-type StreamId uint32
+type StreamID uint32
 
 type Header struct {
-	streamId  StreamId
+	streamID  StreamID
 	frameType Type
 	flags     Flags
 }
 
-const headerSize = streamIdSize + frameFlagSize
-const streamIdSize = uint32Size
+const headerSize = streamIDSize + frameFlagSize
+const streamIDSize = uint32Size
 const frameFlagSize = uint16Size
 const frameTypeShift = 10
 
 func readHeader(r io.Reader) (header *Header, err error) {
-	var streamId uint32
+	var streamID uint32
 	var v uint16
 
-	if err = binary.Read(r, binary.BigEndian, &streamId); err != nil {
+	if err = binary.Read(r, binary.BigEndian, &streamID); err != nil {
 		return
 	}
 	if err = binary.Read(r, binary.BigEndian, &v); err != nil {
@@ -30,7 +30,7 @@ func readHeader(r io.Reader) (header *Header, err error) {
 	}
 
 	header = &Header{
-		StreamId(streamId),
+		StreamID(streamID),
 		Type(v >> frameTypeShift),
 		Flags(v & ((1 << frameTypeShift) - 1)),
 	}
@@ -38,8 +38,8 @@ func readHeader(r io.Reader) (header *Header, err error) {
 	return
 }
 
-func (header *Header) StreamId() StreamId {
-	return header.streamId
+func (header *Header) StreamID() StreamID {
+	return header.streamID
 }
 
 func (header *Header) Type() Type {
@@ -55,7 +55,7 @@ func (header *Header) Size() int {
 }
 
 func (header *Header) WriteTo(w io.Writer) (int64, error) {
-	if err := binary.Write(w, binary.BigEndian, uint32(header.streamId)); err != nil {
+	if err := binary.Write(w, binary.BigEndian, uint32(header.streamID)); err != nil {
 		return 0, err
 	}
 
