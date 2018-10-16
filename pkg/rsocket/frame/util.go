@@ -13,6 +13,7 @@ const uint24Size = 3
 const uint32Size = 4
 const uint64Size = 8
 
+// ErrIncomplete is returned when read an incomplete field.
 var ErrIncomplete = errors.New("incomplete")
 
 func readExact(r io.Reader, size int) ([]byte, error) {

@@ -12,7 +12,7 @@ type tcpTransport struct {
 	address string
 }
 
-func (transport *tcpTransport) Connect(ctx context.Context) (proto.Connection, error) {
+func (transport *tcpTransport) Connect(ctx context.Context) (proto.Conn, error) {
 	addr, err := net.ResolveTCPAddr(transport.network, transport.address)
 
 	if err != nil {
@@ -31,6 +31,8 @@ func (transport *tcpTransport) Connect(ctx context.Context) (proto.Connection, e
 type tcpConn struct {
 	*net.TCPConn
 }
+
+var _ proto.Conn = (*tcpConn)(nil)
 
 func (conn *tcpConn) Sender() proto.FrameSender {
 	return nil

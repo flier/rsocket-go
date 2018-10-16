@@ -9,12 +9,14 @@ import (
 const initReqsSize = uint32Size
 const reqsSize = uint32Size
 
+// RequestResponseFrame sent by client to request a single response.
 type RequestResponseFrame struct {
 	*Header
 	Metadata Metadata
 	Data     []byte
 }
 
+// NewRequestResponseFrame create a new RequestResponseFrame.
 func NewRequestResponseFrame(
 	streamID StreamID,
 	follows bool,
@@ -60,10 +62,12 @@ func readRequestResponseFrame(r io.Reader, header *Header) (frame *RequestRespon
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (request *RequestResponseFrame) Size() int {
 	return request.Header.Size() + request.Metadata.Size() + len(request.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (request *RequestResponseFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = request.Header.WriteTo(w); err != nil {
 		return
@@ -88,12 +92,14 @@ func (request *RequestResponseFrame) WriteTo(w io.Writer) (wrote int64, err erro
 	return
 }
 
+// RequestFireAndForgetFrame sent by client to request a single one-way message.
 type RequestFireAndForgetFrame struct {
 	*Header
 	Metadata Metadata
 	Data     []byte
 }
 
+// NewRequestFireAndForgetFrame creates a new RequestFireAndForgetFrame.
 func NewRequestFireAndForgetFrame(
 	streamID StreamID,
 	follows bool,
@@ -139,10 +145,12 @@ func readRequestFireAndForgetFrame(r io.Reader, header *Header) (frame *RequestF
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (request *RequestFireAndForgetFrame) Size() int {
 	return request.Header.Size() + request.Metadata.Size() + len(request.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (request *RequestFireAndForgetFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = request.Header.WriteTo(w); err != nil {
 		return
@@ -167,6 +175,7 @@ func (request *RequestFireAndForgetFrame) WriteTo(w io.Writer) (wrote int64, err
 	return
 }
 
+// RequestStreamFrame sent by client to request a completable stream.
 type RequestStreamFrame struct {
 	*Header
 	InitialRequests uint32
@@ -174,6 +183,7 @@ type RequestStreamFrame struct {
 	Data            []byte
 }
 
+// NewRequestStreamFrame creates a new RequestStreamFrame.
 func NewRequestStreamFrame(
 	streamID StreamID,
 	follows bool,
@@ -227,10 +237,12 @@ func readRequestStreamFrame(r io.Reader, header *Header) (frame *RequestStreamFr
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (request *RequestStreamFrame) Size() int {
 	return request.Header.Size() + initReqsSize + request.Metadata.Size() + len(request.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (request *RequestStreamFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = request.Header.WriteTo(w); err != nil {
 		return
@@ -261,6 +273,7 @@ func (request *RequestStreamFrame) WriteTo(w io.Writer) (wrote int64, err error)
 	return
 }
 
+// RequestChannelFrame sent by client to request a completable stream in both directions.
 type RequestChannelFrame struct {
 	*Header
 	InitialRequests uint32
@@ -268,6 +281,7 @@ type RequestChannelFrame struct {
 	Data            []byte
 }
 
+// NewRequestChannelFrame creates a new RequestChannelFrame.
 func NewRequestChannelFrame(
 	streamID StreamID,
 	follows bool,
@@ -321,10 +335,12 @@ func readRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannel
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (request *RequestChannelFrame) Size() int {
 	return request.Header.Size() + initReqsSize + request.Metadata.Size() + len(request.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (request *RequestChannelFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = request.Header.WriteTo(w); err != nil {
 		return
@@ -355,11 +371,13 @@ func (request *RequestChannelFrame) WriteTo(w io.Writer) (wrote int64, err error
 	return
 }
 
+// RequestNFrame sent to request N more items with Reactive Streams semantics.
 type RequestNFrame struct {
 	*Header
 	Requests uint32
 }
 
+// NewRequestNFrame creates a new RequestNFrame.
 func NewRequestNFrame(streamID StreamID, requests uint32) *RequestNFrame {
 	return &RequestNFrame{
 		&Header{streamID, TypeRequestN, 0},
@@ -382,10 +400,12 @@ func readRequestNFrame(r io.Reader, header *Header) (frame *RequestNFrame, err e
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (request *RequestNFrame) Size() int {
 	return request.Header.Size() + reqsSize
 }
 
+// WriteTo writes the encoded frame to w.
 func (request *RequestNFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	var n int64
 

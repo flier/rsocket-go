@@ -5,14 +5,15 @@ import (
 	"io"
 )
 
+// Version of protocol
 type Version struct {
 	Major uint16
 	Minor uint16
 }
 
-var V1 = Version{1, 0}
+var v1 = Version{1, 0}
 
-func (version *Version) LessThanOrEquals(other Version) bool {
+func (version *Version) lessThanOrEquals(other Version) bool {
 	if version.Major < other.Major {
 		return true
 	}
@@ -24,10 +25,12 @@ func (version *Version) LessThanOrEquals(other Version) bool {
 	return false
 }
 
+// Size returns the encoded size of the version.
 func (version *Version) Size() int {
 	return 4
 }
 
+// WriteTo writes the encoded frame to w.
 func (version *Version) WriteTo(w io.Writer) (n int64, err error) {
 	if err = binary.Write(w, binary.BigEndian, uint16(version.Major)); err != nil {
 		return

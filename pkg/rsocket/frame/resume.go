@@ -7,6 +7,7 @@ import (
 
 const firstAvailableSize = uint64Size
 
+// ResumeFrame replaces SETUP for Resuming Operation (optional)
 type ResumeFrame struct {
 	*Header
 	Version        Version
@@ -49,6 +50,7 @@ func readResumeFrame(r io.Reader, header *Header) (frame *ResumeFrame, err error
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (resume *ResumeFrame) Size() int {
 	size := resume.Header.Size() + resume.Version.Size()
 
@@ -58,6 +60,7 @@ func (resume *ResumeFrame) Size() int {
 	return size
 }
 
+// WriteTo writes the encoded frame to w.
 func (resume *ResumeFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = resume.Header.WriteTo(w); err != nil {
 		return
@@ -89,6 +92,7 @@ func (resume *ResumeFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	return
 }
 
+// ResumeOkFrame sent in response to a RESUME if resuming operation possible (optional)
 type ResumeOkFrame struct {
 	*Header
 	LastReceived Position // The last implied position the server received from the client.
@@ -109,10 +113,12 @@ func readResumeOkFrame(r io.Reader, header *Header) (frame *ResumeOkFrame, err e
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (frame *ResumeOkFrame) Size() int {
 	return frame.Header.Size() + lastReceivedSize
 }
 
+// WriteTo writes the encoded frame to w.
 func (frame *ResumeOkFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	var n int64
 

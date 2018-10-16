@@ -10,6 +10,7 @@ import (
 const timeToLiveSize = uint32Size
 const numberOfRequestsSize = uint32Size
 
+// LeaseFrame sent by Responder to grant the ability to send requests.
 type LeaseFrame struct {
 	*Header
 	TimeToLive       time.Duration
@@ -43,10 +44,12 @@ func readLeaseFrame(r io.Reader, header *Header) (frame *LeaseFrame, err error) 
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (lease *LeaseFrame) Size() int {
 	return lease.Header.Size() + timeToLiveSize + numberOfRequestsSize + len(lease.Metadata)
 }
 
+// WriteTo writes the encoded frame to w.
 func (lease *LeaseFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	var n int64
 

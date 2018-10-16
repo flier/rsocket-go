@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-// Request APIs to submit requests on an RSocket connection.
+// Requester to submit requests on an RSocket connection.
 type Requester interface {
 	io.Closer
 
@@ -32,7 +32,7 @@ type Requester interface {
 
 // Requester Side of a RSocket. Sends [Frame]s to a [RSocketResponder]
 type rSocketRequester struct {
-	conn               Connection
+	conn               Conn
 	streamIDs          StreamIDs
 	streamRequestLimit uint
 	frameSender        FrameSender
@@ -40,7 +40,8 @@ type rSocketRequester struct {
 	receivers          *sync.Map
 }
 
-func NewRequester(conn Connection, streamIDs StreamIDs, streamRequestLimit uint) Requester {
+// NewRequester create a new Requester.
+func NewRequester(conn Conn, streamIDs StreamIDs, streamRequestLimit uint) Requester {
 	return &rSocketRequester{
 		conn:               conn,
 		streamIDs:          streamIDs,

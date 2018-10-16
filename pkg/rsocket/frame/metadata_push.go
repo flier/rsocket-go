@@ -5,11 +5,13 @@ import (
 	"io/ioutil"
 )
 
+// MetadataPushFrame is an asynchronous Metadata frame.
 type MetadataPushFrame struct {
 	*Header
 	Metadata Metadata
 }
 
+// NewMetadataPushFrame creates a MetadataPushFrame
 func NewMetadataPushFrame(metadata Metadata) *MetadataPushFrame {
 	return &MetadataPushFrame{
 		&Header{0, TypeMetadataPush, FlagMetadata},
@@ -32,10 +34,12 @@ func readMetadataPushFrame(r io.Reader, header *Header) (frame *MetadataPushFram
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (frame *MetadataPushFrame) Size() int {
 	return frame.Header.Size() + len(frame.Metadata)
 }
 
+// WriteTo writes the encoded frame to w.
 func (frame *MetadataPushFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = frame.Header.WriteTo(w); err != nil {
 		return

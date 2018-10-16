@@ -8,6 +8,7 @@ import (
 
 const extTypeSize = uint32Size
 
+// ExtensionFrame used to extend more frame types as well as extensions.
 type ExtensionFrame struct {
 	*Header
 	ExtendedType uint32
@@ -34,10 +35,12 @@ func readExtensionFrame(r io.Reader, header *Header) (frame *ExtensionFrame, err
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (ext *ExtensionFrame) Size() int {
 	return ext.Header.Size() + extTypeSize + len(ext.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (ext *ExtensionFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = ext.Header.WriteTo(w); err != nil {
 		return

@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 )
 
+// Position in the stream.
 type Position uint64
 
 const lastReceivedSize = uint64Size
 
+// KeepaliveFrame used to make connection keepalive.
 type KeepaliveFrame struct {
 	*Header
 	LastReceived Position
@@ -37,10 +39,12 @@ func readKeepaliveFrame(r io.Reader, header *Header) (frame *KeepaliveFrame, err
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (frame *KeepaliveFrame) Size() int {
 	return frame.Header.Size() + keepaliveSize + len(frame.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (frame *KeepaliveFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	var n int64
 

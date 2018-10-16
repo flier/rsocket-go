@@ -9,37 +9,50 @@ import (
 
 const errorCodeSize = uint32Size
 
+// ErrorCode is the type of Error.
 type ErrorCode uint32
 
 const (
+	// ErrReserved is reserved.
 	ErrReserved ErrorCode = 0x00000000
-	// The Setup frame is invalid for the server (it could be that the client is
-	// too recent for the old server). Stream ID MUST be 0.
+	// ErrInvalidSetup indicates the Setup frame is invalid for the serve
+	// (it could be that the client is too recent for the old server).
+	// Stream ID MUST be 0.
 	ErrInvalidSetup ErrorCode = 0x00000001
-	// Some (or all) of the parameters specified by the client are unsupported by
-	// the server. Stream ID MUST be 0.
+	// ErrUnsupportedSetup indicates some (or all) of the parameters
+	// specified by the client are unsupported by the server.
+	// Stream ID MUST be 0.
 	ErrUnsupportedSetup ErrorCode = 0x00000002
-	// The server rejected the setup, it can specify the reason in the payload.
+	// ErrRejectedSetup indicates the server rejected the setup,
+	// it can specify the reason in the payload.
 	// Stream ID MUST be 0.
 	ErrRejectedSetup ErrorCode = 0x00000003
-	// The server rejected the resume, it can specify the reason in the payload.
+	// ErrRejectedResume indicates the server rejected the resume,
+	// it can specify the reason in the payload.
 	// Stream ID MUST be 0.
 	ErrRejectedResume ErrorCode = 0x00000004
-	// The connection is being terminated. Stream ID MUST be 0.
+	// ErrConnectionError indicates the connection is being terminated.
+	// Stream ID MUST be 0.
+	// Sender or Receiver of this frame MAY close the connection immediately
+	// without waiting for outstanding streams to terminate.
 	ErrConnectionError ErrorCode = 0x00000101
-	// Application layer logic generating a Reactive Streams onError event.
+	// ErrApplicationError indicates application layer logic generating error.
 	// Stream ID MUST be non-0.
 	ErrApplicationError ErrorCode = 0x00000201
-	// Despite being a valid request, the Responder decided to reject it. The
-	// Responder guarantees that it didn't process the request. The reason for the
-	// rejection is explained in the metadata section. Stream ID MUST be non-0.
+	// ErrRejected indicates a valid request, the Responder decided to reject it.
+	// The Responder guarantees that it didn't process the request.
+	// The reason for the rejection is explained in the metadata section.
+	// Stream ID MUST be non-0.
 	ErrRejected ErrorCode = 0x00000202
-	// The responder canceled the request but potentially have started processing
-	// it (almost identical to REJECTED but doesn't garantee that no side-effect
-	// have been started). Stream ID MUST be non-0.
+	// ErrCanceled indicates the responder canceled the request
+	// but potentially have started processing it
+	// (almost identical to REJECTED but doesn't garantee that no side-effect have been started).
+	// Stream ID MUST be non-0.
 	ErrCanceled ErrorCode = 0x00000203
-	// The request is invalid. Stream ID MUST be non-0.
-	ErrInvalid   ErrorCode = 0x00000204
+	// ErrInvalid indicates the request is invalid.
+	// Stream ID MUST be non-0.
+	ErrInvalid ErrorCode = 0x00000204
+	// ErrExtension is reserved for Extension Use.
 	ErrExtension ErrorCode = 0xFFFFFFFF
 )
 
@@ -72,12 +85,14 @@ func (code ErrorCode) String() string {
 	}
 }
 
+// ErrorFrame reports error at connection or application level.
 type ErrorFrame struct {
 	*Header
 	Code ErrorCode
 	Data string
 }
 
+// NewErrorFrame creates a new ErrorFrame.
 func NewErrorFrame(streamID StreamID, code ErrorCode, data string) *ErrorFrame {
 	return &ErrorFrame{&Header{streamID, TypeError, 0}, code, data}
 }
@@ -103,14 +118,17 @@ func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) 
 	return
 }
 
-func (err *ErrorFrame) Err() error {
-	return fmt.Errorf("ERROR[%s] %s", err.Code, err.Data)
+// Err returns the formated error
+func (frame *ErrorFrame) Err() error {
+	return fmt.Errorf("ERROR[%s] %s", frame.Code, frame.Data)
 }
 
+// Size returns the encoded size of the frame.
 func (frame *ErrorFrame) Size() int {
 	return frame.Header.Size() + errorCodeSize + len(frame.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (frame *ErrorFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	var n int64
 

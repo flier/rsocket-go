@@ -4,25 +4,42 @@ import (
 	"fmt"
 )
 
+// Type of frame
 type Type byte
 
 const (
-	TypeReserved             Type = iota
-	TypeSetup                            // Sent by client to initiate protocol processing.
-	TypeLease                            // Sent by Responder to grant the ability to send requests.
-	TypeKeepalive                        // Connection keepalive.
-	TypeRequestResponse                  // Request single response.
-	TypeRequestFireAndForget             // A single one-way message.
-	TypeRequestStream                    // Request a completable stream.
-	TypeRequestChannel                   // Request a completable stream in both directions.
-	TypeRequestN                         // Request N more items with Reactive Streams semantics.
-	TypeCancel                           // Cancel outstanding request.
-	TypePayload                          // Payload on a stream.
-	TypeError                            // Error at connection or application level.
-	TypeMetadataPush                     // Asynchronous Metadata frame
-	TypeResume                           // Replaces SETUP for Resuming Operation (optional)
-	TypeResumeOk                         // Sent in response to a RESUME if resuming operation possible (optional)
-	TypeExtension            Type = 0x3F // Used To Extend more frame types as well as extensions.
+	// TypeReserved is Reserved
+	TypeReserved Type = iota
+	// TypeSetup sent by client to initiate protocol processing.
+	TypeSetup
+	// TypeLease sent by Responder to grant the ability to send requests.
+	TypeLease
+	// TypeKeepalive sent to make connection keepalive.
+	TypeKeepalive
+	// TypeRequestResponse sent by client to request a single response.
+	TypeRequestResponse
+	// TypeRequestFireAndForget sent by client to request a single one-way message.
+	TypeRequestFireAndForget
+	// TypeRequestStream sent by client to request a completable stream.
+	TypeRequestStream
+	// TypeRequestChannel sent by client to request a completable stream in both directions.
+	TypeRequestChannel
+	// TypeRequestN sent to request N more items with Reactive Streams semantics.
+	TypeRequestN
+	// TypeCancel sent to cancel outstanding request.
+	TypeCancel
+	// TypePayload send payload on a stream.
+	TypePayload
+	// TypeError send error at connection or application level.
+	TypeError
+	// TypeMetadataPush send a metadata.
+	TypeMetadataPush
+	// TypeResume replaces SETUP for Resuming Operation (optional)
+	TypeResume
+	// TypeResumeOk sent in response to a RESUME if resuming operation possible (optional)
+	TypeResumeOk
+	// TypeExtension used To Extend more frame types as well as extensions.
+	TypeExtension Type = 0x3F
 )
 
 func (t Type) String() string {

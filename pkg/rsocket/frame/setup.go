@@ -10,6 +10,7 @@ import (
 const keepaliveSize = uint32Size
 const maxLifetimeSize = uint32Size
 
+// SetupFrame sent by client to initiate protocol processing.
 type SetupFrame struct {
 	*Header
 	Version          Version
@@ -22,6 +23,7 @@ type SetupFrame struct {
 	Data             []byte
 }
 
+// NewSetupFrame creates a SetupFrame.
 func NewSetupFrame(
 	version Version,
 	lease bool,
@@ -137,6 +139,7 @@ func readSetupFrame(r io.Reader, header *Header) (frame *SetupFrame, err error) 
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (setup *SetupFrame) Size() int {
 	size := setup.Header.Size() + setup.Version.Size() + keepaliveSize + maxLifetimeSize
 
@@ -151,6 +154,7 @@ func (setup *SetupFrame) Size() int {
 	return size
 }
 
+// WriteTo writes the encoded frame to w.
 func (setup *SetupFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = setup.Header.WriteTo(w); err != nil {
 		return

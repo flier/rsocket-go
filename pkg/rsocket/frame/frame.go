@@ -5,8 +5,10 @@ import (
 	"io"
 )
 
-var ErrUnknownType = errors.New("unknown frame type")
+// ErrUnknownFrameType is returned when receive a frame with unknown type.
+var ErrUnknownFrameType = errors.New("unknown frame type")
 
+// Frame is generic single message containing a request, response, or protocol processing.
 type Frame interface {
 	io.WriterTo
 
@@ -52,6 +54,6 @@ func readFrame(r io.Reader, header *Header) (Frame, error) {
 	case TypeExtension:
 		return readExtensionFrame(r, header)
 	default:
-		return nil, ErrUnknownType
+		return nil, ErrUnknownFrameType
 	}
 }

@@ -4,6 +4,10 @@ import (
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 )
 
+// Metadata holds metadata for the request.
+type Metadata = frame.Metadata
+
+// Payload is the request payload with metadata and data.
 type Payload struct {
 	HasMetadata bool
 	Metadata    Metadata
@@ -32,14 +36,4 @@ func (payload *Payload) buildPayloadFrame(streamID StreamID) *frame.PayloadFrame
 
 func buildCompleteFrame(streamID StreamID) *frame.PayloadFrame {
 	return frame.NewPayloadFrame(streamID, false, true, false, false, nil, nil)
-}
-
-type PayloadStream interface {
-	Stream() <-chan *Payload
-
-	Err() error
-}
-
-type PayloadFuture interface {
-	Get() (*Payload, error)
 }

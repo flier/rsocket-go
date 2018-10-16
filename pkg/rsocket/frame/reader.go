@@ -6,24 +6,27 @@ import (
 	"io"
 )
 
+// Reader implements convenience methods for reading frames from a RSocket connection.
 type Reader struct {
 	io.Reader
 	version *Version
 	buf     *bytes.Buffer
 }
 
+// NewReader returns a new Reader reading from r.
 func NewReader(r io.Reader, version *Version) *Reader {
 	return &Reader{r, version, nil}
 }
 
 func (r *Reader) frameLengthSize() int {
-	if r.version.LessThanOrEquals(V1) {
+	if r.version.lessThanOrEquals(v1) {
 		return uint32Size
 	}
 
 	return uint24Size
 }
 
+// ReadFrame reads a frame from a RSocket connection.
 func (r *Reader) ReadFrame() (frame Frame, err error) {
 	for {
 		if r.buf == nil {
@@ -75,7 +78,7 @@ func (r *Reader) ReadFrame() (frame Frame, err error) {
 
 			r.buf = nil
 
-			if err == ErrUnknownType && header.CanIgnore() {
+			if err == ErrUnknownFrameType && header.CanIgnore() {
 				continue
 			}
 

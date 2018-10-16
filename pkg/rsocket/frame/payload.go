@@ -5,12 +5,14 @@ import (
 	"io/ioutil"
 )
 
+// PayloadFrame send payload on a request or stream.
 type PayloadFrame struct {
 	*Header
 	Metadata Metadata
 	Data     []byte
 }
 
+// NewPayloadFrame creates a PayloadFrame.
 func NewPayloadFrame(streamID StreamID, follows bool, complete bool, next bool, hasMetadata bool, metadata Metadata, data []byte) *PayloadFrame {
 	var flags Flags
 
@@ -58,10 +60,12 @@ func readPayloadFrame(r io.Reader, header *Header) (frame *PayloadFrame, err err
 	return
 }
 
+// Size returns the encoded size of the frame.
 func (payload *PayloadFrame) Size() int {
 	return payload.Header.Size() + payload.Metadata.Size() + len(payload.Data)
 }
 
+// WriteTo writes the encoded frame to w.
 func (payload *PayloadFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 	if wrote, err = payload.Header.WriteTo(w); err != nil {
 		return

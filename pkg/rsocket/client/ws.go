@@ -14,7 +14,7 @@ type wsTransport struct {
 	header http.Header
 }
 
-func (transport *wsTransport) Connect(ctx context.Context) (proto.Connection, error) {
+func (transport *wsTransport) Connect(ctx context.Context) (proto.Conn, error) {
 	conn, _, err := ws.DefaultDialer.Dial(transport.target.String(), transport.header)
 
 	if err != nil {
@@ -27,6 +27,8 @@ func (transport *wsTransport) Connect(ctx context.Context) (proto.Connection, er
 type wsConn struct {
 	*ws.Conn
 }
+
+var _ proto.Conn = (*wsConn)(nil)
 
 func (conn *wsConn) Sender() proto.FrameSender {
 	return nil

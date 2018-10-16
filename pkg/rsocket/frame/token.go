@@ -6,11 +6,13 @@ import (
 	"io"
 )
 
+// Token used for client resume identification
 type Token []byte
 
 const defaultTokenSize = 16
 const tokenLenSize = uint16Size
 
+// NewToken creates a new randome token.
 func NewToken() Token {
 	token := make([]byte, defaultTokenSize)
 
@@ -29,10 +31,12 @@ func readToken(r io.Reader) (token Token, err error) {
 	return readExact(r, int(len))
 }
 
+// Size returns the encoded size of the token.
 func (token Token) Size() int {
 	return len(token)
 }
 
+// WriteTo writes the token to w.
 func (token Token) WriteTo(w io.Writer) (wrote int64, err error) {
 	if err = binary.Write(w, binary.BigEndian, uint16(len(token))); err != nil {
 		return

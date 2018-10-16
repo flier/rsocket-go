@@ -11,7 +11,7 @@ import (
 var ErrUnknownScheme = errors.New("unknown scheme")
 
 type Transport interface {
-	Connect(ctx context.Context) (proto.Connection, error)
+	Connect(ctx context.Context) (proto.Conn, error)
 }
 
 func clientForUri(target *url.URL) (transport Transport, err error) {

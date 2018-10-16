@@ -18,7 +18,7 @@ type rSocketClient struct {
 	transport   Transport
 	version     proto.Version
 	resumeToken proto.Token
-	conn        proto.Connection
+	conn        proto.Conn
 	handshaking bool
 }
 
