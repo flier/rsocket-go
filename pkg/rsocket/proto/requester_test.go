@@ -2,6 +2,8 @@ package proto
 
 import (
 	"context"
+	"flag"
+	"os"
 	"sync"
 	"testing"
 
@@ -11,20 +13,23 @@ import (
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 )
 
-func getLogger() (logger *zap.Logger) {
+var logger *zap.Logger
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
 	if testing.Verbose() {
 		logger, _ = zap.NewDevelopment()
 	} else {
 		logger, _ = zap.NewProduction()
 	}
 
-	return
+	defer logger.Sync()
+
+	os.Exit(m.Run())
 }
 
 func TestRequestResponse(t *testing.T) {
-	logger := getLogger()
-	defer logger.Sync()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -128,9 +133,6 @@ func TestRequestResponse(t *testing.T) {
 }
 
 func TestFireAndForget(t *testing.T) {
-	logger := getLogger()
-	defer logger.Sync()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -170,9 +172,6 @@ func TestFireAndForget(t *testing.T) {
 }
 
 func TestMetadataPush(t *testing.T) {
-	logger := getLogger()
-	defer logger.Sync()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
