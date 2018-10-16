@@ -284,7 +284,7 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 		case *frame.ErrorFrame:
 			defer complete()
 
-			return receive(Err(f.Err()))
+			return receive(Err(&Error{f.Code, f.Data}))
 
 		case *frame.CancelFrame:
 			defer complete()

@@ -88,13 +88,12 @@ func (code ErrorCode) Error() string {
 // ErrorFrame reports error at connection or application level.
 type ErrorFrame struct {
 	*Header
-	Code ErrorCode
-	Data string
+	*Error
 }
 
 // NewErrorFrame creates a new ErrorFrame.
 func NewErrorFrame(streamID StreamID, code ErrorCode, data string) *ErrorFrame {
-	return &ErrorFrame{&Header{streamID, TypeError, 0}, code, data}
+	return &ErrorFrame{&Header{streamID, TypeError, 0}, &Error{code, data}}
 }
 
 func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) {
@@ -111,16 +110,28 @@ func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) 
 
 	frame = &ErrorFrame{
 		header,
-		ErrorCode(code),
-		string(data),
+		&Error{
+			ErrorCode(code),
+			string(data),
+		},
 	}
 
 	return
 }
 
+// Error of protocol
+type Error struct {
+	Code ErrorCode
+	Data string
+}
+
+func (err *Error) Error() string {
+	return fmt.Sprintf("ERROR[%s] %s", err.Code, err.Data)
+}
+
 // Err returns the formated error
 func (frame *ErrorFrame) Err() error {
-	return fmt.Errorf("ERROR[%s] %s", frame.Code, frame.Data)
+	return &Error{frame.Code, frame.Data}
 }
 
 // Size returns the encoded size of the frame.

@@ -33,7 +33,9 @@ func TestRequestResponse(t *testing.T) {
 	Convey("Given a client requester", t, func() {
 		requester := NewRequester(logger, frameSender, ClientStreamIDs(), 16)
 
-		Convey("When send a RequestResponse request", func() {
+		// RQ -> RS: REQUEST_RESPONSE
+		// RS -> RQ: PAYLOAD with COMPLETE
+		Convey("When send a RequestResponse request for response", func() {
 			go func() {
 				Convey("The RequestResponse request should be sent", t, func() {
 					f := <-frameSender
@@ -60,6 +62,67 @@ func TestRequestResponse(t *testing.T) {
 
 			So(payload.Text(), ShouldEqual, "hello world")
 			So(err, ShouldBeNil)
+		})
+
+		// RQ -> RS: REQUEST_RESPONSE
+		// RS -> RQ: ERROR[APPLICATION_ERROR|REJECTED|CANCELED|INVALID]
+		Convey("When send a RequestResponse request for error", func() {
+			go func() {
+				Convey("The RequestResponse request should be sent", t, func() {
+					f := <-frameSender
+
+					So(f, ShouldNotBeNil)
+					So(f.StreamID(), ShouldEqual, 1)
+					So(f.Type(), ShouldEqual, frame.TypeRequestResponse)
+					So(f.Flags(), ShouldEqual, 0)
+
+					requestFrame := f.(*frame.RequestResponseFrame)
+
+					So(string(requestFrame.Data), ShouldEqual, "hello")
+
+					Convey("Then send error response", func() {
+						errorFrame := frame.NewErrorFrame(f.StreamID(), frame.ErrApplicationError, "for test")
+
+						So(requester.(*rSocketRequester).handleFrame(ctx, errorFrame), ShouldBeNil)
+					})
+				})
+			}()
+
+			payload, err := requester.RequestResponse(ctx, Text("hello"))
+
+			So(payload, ShouldBeNil)
+			So(err.Error(), ShouldEqual, "ERROR[APPLICATION_ERROR] for test")
+			So(err.(*Error), ShouldResemble, &Error{Code: frame.ErrApplicationError, Data: "for test"})
+		})
+
+		// RQ -> RS: REQUEST_RESPONSE
+		// RQ -> RS: CANCEL
+		Convey("When send a RequestResponse request for cancel", func() {
+			go func() {
+				Convey("The RequestResponse request should be sent", t, func() {
+					f := <-frameSender
+
+					So(f, ShouldNotBeNil)
+					So(f.StreamID(), ShouldEqual, 1)
+					So(f.Type(), ShouldEqual, frame.TypeRequestResponse)
+					So(f.Flags(), ShouldEqual, 0)
+
+					requestFrame := f.(*frame.RequestResponseFrame)
+
+					So(string(requestFrame.Data), ShouldEqual, "hello")
+
+					Convey("Then send cancel response", func() {
+						cancelFrame := frame.NewCancelFrame(f.StreamID())
+
+						So(requester.(*rSocketRequester).handleFrame(ctx, cancelFrame), ShouldBeNil)
+					})
+				})
+			}()
+
+			payload, err := requester.RequestResponse(ctx, Text("hello"))
+
+			So(payload, ShouldBeNil)
+			So(err, ShouldEqual, context.Canceled)
 		})
 	})
 }

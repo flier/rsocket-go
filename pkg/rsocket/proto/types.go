@@ -9,3 +9,6 @@ type Version = frame.Version
 
 // Token used for client resume identification.
 type Token = frame.Token
+
+// Error of the protocol
+type Error = frame.Error
