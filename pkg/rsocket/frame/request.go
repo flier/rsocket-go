@@ -360,6 +360,13 @@ type RequestNFrame struct {
 	Requests uint32
 }
 
+func NewRequestNFrame(streamID StreamID, requests uint32) *RequestNFrame {
+	return &RequestNFrame{
+		&Header{streamID, TypeRequestN, 0},
+		requests,
+	}
+}
+
 func readRequestNFrame(r io.Reader, header *Header) (frame *RequestNFrame, err error) {
 	var reqs uint32
 

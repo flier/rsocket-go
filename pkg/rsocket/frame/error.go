@@ -78,6 +78,10 @@ type ErrorFrame struct {
 	Data string
 }
 
+func NewErrorFrame(streamID StreamID, code ErrorCode, data string) *ErrorFrame {
+	return &ErrorFrame{&Header{streamID, TypeError, 0}, code, data}
+}
+
 func readErrorFrame(r io.Reader, header *Header) (frame *ErrorFrame, err error) {
 	var code uint32
 	var data []byte

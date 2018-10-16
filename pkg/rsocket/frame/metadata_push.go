@@ -10,6 +10,13 @@ type MetadataPushFrame struct {
 	Metadata Metadata
 }
 
+func NewMetadataPushFrame(metadata Metadata) *MetadataPushFrame {
+	return &MetadataPushFrame{
+		&Header{0, TypeMetadataPush, FlagMetadata},
+		metadata,
+	}
+}
+
 func readMetadataPushFrame(r io.Reader, header *Header) (frame *MetadataPushFrame, err error) {
 	var metadata Metadata
 

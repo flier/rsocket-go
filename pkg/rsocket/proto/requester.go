@@ -15,225 +15,19 @@ type Requester interface {
 	io.Closer
 
 	// Send a single request and get a response stream.
-	RequestStream(ctx context.Context, request Payload) (PayloadStream, error)
+	RequestStream(ctx context.Context, payload *Payload) (<-chan *Result, error)
 
 	// Start a channel (streams in both directions).
-	RequestChannel(ctx context.Context, requests PayloadStream) (PayloadStream, error)
+	RequestChannel(ctx context.Context, payloads <-chan *Result) (<-chan *Result, error)
 
 	// Send a single request and get a single response.
-	RequestResponse(ctx context.Context, request Payload) (PayloadFuture, error)
+	RequestResponse(ctx context.Context, payload *Payload) (*Payload, error)
 
 	// Send a single Payload with no response.
-	FireAndForget(ctx context.Context, request Payload) error
+	FireAndForget(ctx context.Context, payload *Payload) error
 
 	// Send metadata without response.
-	MetadataPush(ctx context.Context, request Metadata) error
-}
-
-type Sender interface {
-	Cancel() error
-
-	Request(n uint) error
-}
-
-type Mapper func(*Payload) frame.Frame
-
-type frameSender struct {
-	cancel context.CancelFunc
-}
-
-var _ Sender = (*frameSender)(nil)
-
-func newFrameSender(ctx context.Context, frame frame.Frame, frames chan<- frame.Frame, destructor func()) *frameSender {
-	ctx, cancel := context.WithCancel(ctx)
-
-	go func() error {
-		defer destructor()
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
-		case frames <- frame:
-			return nil
-		}
-	}()
-
-	return &frameSender{cancel}
-}
-
-func (sender *frameSender) Cancel() error {
-	sender.cancel()
-	return nil
-}
-
-func (sender *frameSender) Request(n uint) error {
-	return nil
-}
-
-type streamSender struct {
-	cancel   context.CancelFunc
-	requests *semaphore.Weighted
-}
-
-var _ Sender = (*streamSender)(nil)
-
-func newStreamSender(
-	ctx context.Context,
-	payloads PayloadStream,
-	mapper Mapper,
-	n uint,
-	frames chan<- frame.Frame,
-	destructor func(),
-) *streamSender {
-	ctx, cancel := context.WithCancel(ctx)
-	requests := semaphore.NewWeighted(int64(n))
-
-	go func() error {
-		defer destructor()
-
-		for {
-			err := requests.Acquire(ctx, 1)
-
-			if err != nil {
-				return err
-			}
-
-			var frame frame.Frame
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-
-			case payload := <-payloads.Stream():
-				if payload == nil {
-					return nil
-				}
-
-				frame = mapper(payload)
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-
-			case frames <- frame:
-				continue
-			}
-		}
-	}()
-
-	return &streamSender{cancel, requests}
-}
-
-func (sender *streamSender) Cancel() error {
-	sender.cancel()
-	return nil
-}
-
-func (sender *streamSender) Request(n uint) error {
-	sender.requests.Release(int64(n))
-	return nil
-}
-
-type Receiver interface {
-	Next(payload Payload) error
-
-	Reject(err error) error
-
-	Complete() error
-}
-
-type payloadReceiver struct {
-	destructor func()
-	c          *sync.Cond
-	payload    *Payload
-	err        error
-}
-
-var _ Receiver = (*payloadReceiver)(nil)
-var _ PayloadFuture = (*payloadReceiver)(nil)
-
-func newPayloadReceiver(destructor func()) *payloadReceiver {
-	return &payloadReceiver{destructor, sync.NewCond(new(sync.Mutex)), nil, nil}
-}
-
-func (receiver *payloadReceiver) Next(payload Payload) error {
-	receiver.payload = &payload
-	receiver.c.Broadcast()
-
-	return nil
-}
-
-func (receiver *payloadReceiver) Reject(err error) error {
-	receiver.err = err
-	receiver.c.Broadcast()
-	receiver.destructor()
-	return nil
-}
-
-func (receiver *payloadReceiver) Complete() error {
-	receiver.c.Broadcast()
-	receiver.destructor()
-
-	return nil
-}
-
-func (receiver *payloadReceiver) Get() (*Payload, error) {
-	receiver.c.L.Lock()
-
-	for receiver.payload == nil && receiver.err == nil {
-		receiver.c.Wait()
-	}
-
-	receiver.c.L.Unlock()
-
-	return receiver.payload, receiver.err
-}
-
-func (receiver *payloadReceiver) Err() error {
-	return receiver.err
-}
-
-type streamReceiver struct {
-	destructor func()
-	payloads   chan *Payload
-	err        error
-}
-
-var _ Receiver = (*streamReceiver)(nil)
-var _ PayloadStream = (*streamReceiver)(nil)
-
-func newStreamReceiver(destructor func()) *streamReceiver {
-	return &streamReceiver{destructor, make(chan *Payload), nil}
-}
-
-func (receiver *streamReceiver) Next(payload Payload) error {
-	receiver.payloads <- &payload
-
-	return nil
-}
-
-func (receiver *streamReceiver) Reject(err error) error {
-	receiver.err = err
-
-	return receiver.Complete()
-}
-
-func (receiver *streamReceiver) Complete() error {
-	defer receiver.destructor()
-
-	close(receiver.payloads)
-
-	return nil
-}
-
-func (receiver *streamReceiver) Stream() <-chan *Payload {
-	return receiver.payloads
-}
-
-func (receiver *streamReceiver) Err() error {
-	return receiver.err
+	MetadataPush(ctx context.Context, metadata Metadata) error
 }
 
 // Requester Side of a RSocket. Sends [Frame]s to a [RSocketResponder]
@@ -258,132 +52,242 @@ func NewRequester(conn Connection, streamIDs StreamIDs, streamRequestLimit uint)
 }
 
 func (requester *rSocketRequester) Close() (err error) {
-	return
+	return requester.conn.Close()
 }
 
-func (requester *rSocketRequester) RequestStream(ctx context.Context, payload Payload) (PayloadStream, error) {
-	streamID := requester.streamIDs.Next()
+type resultReceiver chan *Result
 
-	requester.senders.Store(streamID,
-		newFrameSender(ctx, payload.buildRequestStreamFrame(streamID, 128), requester.frameSender, func() {
-			requester.senders.Delete(streamID)
-		}))
-
-	receiver := newStreamReceiver(func() {
-		requester.receivers.Delete(streamID)
-	})
+func (requester *rSocketRequester) newReceiver(streamID StreamID) resultReceiver {
+	receiver := make(resultReceiver)
 
 	requester.receivers.Store(streamID, receiver)
 
-	return receiver, nil
+	return receiver
 }
 
-func (requester *rSocketRequester) RequestChannel(ctx context.Context, requests PayloadStream) (PayloadStream, error) {
+func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload *Payload) (*Payload, error) {
 	streamID := requester.streamIDs.Next()
-	requester.senders.Store(streamID,
-		newStreamSender(
-			ctx,
-			requests,
-			func(payload *Payload) frame.Frame {
-				return payload.buildRequestChannelFrame(streamID, 128)
-			},
-			128,
-			requester.frameSender,
-			func() {
-				requester.senders.Delete(streamID)
-			},
-		),
-	)
-	receiver := newStreamReceiver(func() {
-		requester.receivers.Delete(streamID)
-	})
+	receiver := requester.newReceiver(streamID)
 
-	requester.receivers.Store(streamID, receiver)
+	requestResponseFrame := payload.buildRequestResponseFrame(streamID)
 
-	return receiver, nil
+	if err := requester.sendFrame(ctx, requestResponseFrame); err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+
+	case result := <-receiver:
+		return result.Payload, result.Err
+	}
 }
 
-func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload Payload) (PayloadFuture, error) {
+func (requester *rSocketRequester) FireAndForget(ctx context.Context, payload *Payload) error {
 	streamID := requester.streamIDs.Next()
 
-	requester.senders.Store(streamID, newFrameSender(ctx,
-		payload.buildRequestResponseFrame(streamID), requester.frameSender, func() {
-			requester.senders.Delete(streamID)
-		}),
-	)
-
-	receiver := newPayloadReceiver(func() {
-		requester.receivers.Delete(streamID)
-	})
-
-	requester.receivers.Store(streamID, receiver)
-
-	return receiver, nil
+	return requester.sendFrame(ctx, payload.buildRequestFireAndForgetFrame(streamID))
 }
 
-func (requester *rSocketRequester) FireAndForget(ctx context.Context, payload Payload) (err error) {
+func (requester *rSocketRequester) MetadataPush(ctx context.Context, metadata Metadata) (err error) {
+	return requester.sendFrame(ctx, frame.NewMetadataPushFrame(metadata))
+}
+
+func (requester *rSocketRequester) RequestStream(ctx context.Context, payload *Payload) (<-chan *Result, error) {
 	streamID := requester.streamIDs.Next()
+	receiver := requester.newReceiver(streamID)
 
-	requester.senders.Store(streamID, newFrameSender(ctx,
-		payload.buildRequestFireAndForgetFrame(streamID), requester.frameSender, func() {
-			requester.senders.Delete(streamID)
-		}),
-	)
+	requestStreamFrame := frame.NewRequestStreamFrame(streamID, false, uint32(requester.streamRequestLimit),
+		payload.HasMetadata, payload.Metadata, payload.Data)
 
-	return
+	if err := requester.sendFrame(ctx, requestStreamFrame); err != nil {
+		return nil, err
+	}
+
+	return requester.receivePayloads(ctx, streamID, func() {}, receiver), nil
 }
 
-func (requester *rSocketRequester) MetadataPush(ctx context.Context, request Metadata) (err error) {
-	return
+func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads <-chan *Result) (<-chan *Result, error) {
+	streamID := requester.streamIDs.Next()
+	receiver := requester.newReceiver(streamID)
+
+	var payload Payload
+
+	if result, ok := <-payloads; ok {
+		if result.Err == nil {
+			payload = *result.Payload
+		} else {
+			defer func() error {
+				errorFrame := frame.NewErrorFrame(streamID, frame.ErrApplicationError, result.Err.Error())
+
+				return requester.sendFrame(ctx, errorFrame)
+			}()
+
+			payloads = nil
+		}
+	}
+
+	requestChannelFrame := frame.NewRequestChannelFrame(streamID, false, uint32(requester.streamRequestLimit),
+		payload.HasMetadata, payload.Metadata, payload.Data)
+
+	if err := requester.sendFrame(ctx, requestChannelFrame); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	if payloads != nil {
+		requests := semaphore.NewWeighted(0)
+		requester.senders.Store(streamID, requests)
+
+		go func() error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+
+				case result := <-payloads:
+					if err := requests.Acquire(ctx, 1); err != nil {
+						return err
+					}
+
+					if result == nil {
+						return requester.sendFrame(ctx, buildCompleteFrame(streamID))
+					}
+
+					if result.Err != nil {
+						errorFrame := frame.NewErrorFrame(streamID, frame.ErrApplicationError, result.Err.Error())
+
+						return requester.sendFrame(ctx, errorFrame)
+					}
+
+					if err := requester.sendFrame(ctx, result.Payload.buildPayloadFrame(streamID)); err != nil {
+						return err
+					}
+				}
+			}
+		}()
+	}
+
+	return requester.receivePayloads(ctx, streamID, cancel, receiver), nil
 }
 
-func (requester *rSocketRequester) handleFrame(frm frame.Frame) error {
-	streamID := frm.StreamID()
+func (requester *rSocketRequester) sendFrame(ctx context.Context, frame frame.Frame) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case requester.frameSender <- frame:
+		return nil
+	}
+}
+
+func (requester *rSocketRequester) receivePayloads(ctx context.Context, streamID StreamID, cancel context.CancelFunc, receiver <-chan *Result) <-chan *Result {
+	results := make(chan *Result)
+
+	go func() error {
+		defer cancel()
+
+		requestN := requester.streamRequestLimit
+
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+
+			case result := <-receiver:
+				if result == nil {
+					return nil
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+
+				case results <- result:
+					requestN--
+
+					if requestN == 0 {
+						requestN = requester.streamRequestLimit
+
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+
+						case requester.frameSender <- frame.NewRequestNFrame(streamID, uint32(requestN)):
+							break
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	return results
+}
+
+func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Frame) error {
+	streamID := f.StreamID()
 
 	if receiver, ok := requester.receivers.Load(streamID); ok {
-		receiver := receiver.(Receiver)
+		receiver := receiver.(resultReceiver)
 
-		switch frm := frm.(type) {
-		case *frame.ErrorFrame:
-			return receiver.Reject(frm.Err())
-
-		case *frame.CancelFrame:
-			sender, ok := requester.senders.Load(streamID)
-
+		complete := func() {
 			requester.senders.Delete(streamID)
 			requester.receivers.Delete(streamID)
 
-			if ok {
-				return sender.(Sender).Cancel()
+			close(receiver)
+		}
+
+		receive := func(result *Result) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case receiver <- result:
+				return nil
 			}
+		}
+
+		switch f := f.(type) {
+		case *frame.ErrorFrame:
+			defer complete()
+
+			return receive(Err(f.Err()))
+
+		case *frame.CancelFrame:
+			defer complete()
+
+			return receive(Err(context.Canceled))
 
 		case *frame.PayloadFrame:
-			if frm.Next() {
-				receiver.Next(Payload{
-					HasMetadata: frm.HasMetadata(),
-					Metadata:    frm.Metadata,
-					Data:        frm.Data,
-				})
+			if f.Complete() {
+				defer complete()
 			}
 
-			if frm.Complete() {
-				return receiver.Complete()
+			if f.Next() {
+				return receive(Ok(&Payload{
+					HasMetadata: f.HasMetadata(),
+					Metadata:    f.Metadata,
+					Data:        f.Data,
+				}))
 			}
 
 		case *frame.RequestNFrame:
 			if sender, ok := requester.senders.Load(streamID); ok {
-				return sender.(Sender).Request(uint(frm.Requests))
+				sender.(*semaphore.Weighted).Release(int64(f.Requests))
+
+				return nil
 			}
 
 		default:
-			return fmt.Errorf("Client received unsupported %s frame on %d stream", frm.Type(), streamID)
+			return fmt.Errorf("Client received unsupported %s frame on %d stream", f.Type(), streamID)
 		}
 	} else if requester.streamIDs.Current() < streamID {
-		if err, ok := frm.(*frame.ErrorFrame); ok {
+		if err, ok := f.(*frame.ErrorFrame); ok {
 			return fmt.Errorf("Client received error (%s) for non-existent %d stream: %s", err.Code, streamID, err.Data)
-		} else {
-			return fmt.Errorf("Client received %s message for non-existent %d stream", frm.Type(), streamID)
 		}
+
+		return fmt.Errorf("Client received %s message for non-existent %d stream", f.Type(), streamID)
 	}
 
 	return nil
