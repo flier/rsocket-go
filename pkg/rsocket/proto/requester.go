@@ -144,15 +144,30 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 		requests := semaphore.NewWeighted(0)
 		requester.senders.Store(streamID, requests)
 
+		sendError := func(err error) error {
+			defer cancel()
+			defer close(receiver)
+
+			var f frame.Frame
+
+			if err == context.Canceled {
+				f = frame.NewCancelFrame(streamID)
+			} else {
+				f = frame.NewErrorFrame(streamID, frame.ErrApplicationError, err.Error())
+			}
+
+			return requester.sendFrame(ctx, f)
+		}
+
 		go func() error {
 			for {
 				select {
 				case <-ctx.Done():
-					return ctx.Err()
+					return sendError(ctx.Err())
 
 				case result := <-payloads:
 					if err := requests.Acquire(ctx, 1); err != nil {
-						return err
+						return sendError(err)
 					}
 
 					if result == nil {
@@ -160,13 +175,11 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 					}
 
 					if result.Err != nil {
-						errorFrame := frame.NewErrorFrame(streamID, frame.ErrApplicationError, result.Err.Error())
-
-						return requester.sendFrame(ctx, errorFrame)
+						return sendError(result.Err)
 					}
 
 					if err := requester.sendFrame(ctx, result.Payload.buildPayloadFrame(streamID, false)); err != nil {
-						return err
+						return sendError(err)
 					}
 				}
 			}
