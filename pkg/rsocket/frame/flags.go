@@ -23,11 +23,11 @@ const (
 )
 
 // Set flag
-func (flags Flags) Set(flag Flags) {
-	flags |= flag
+func (flags *Flags) Set(flag Flags) {
+	*flags |= flag
 }
 
 // IsSet returns the flag is set or not.
-func (flags Flags) IsSet(flag Flags) bool {
-	return flags&flag == flag
+func (flags *Flags) IsSet(flag Flags) bool {
+	return *flags&flag == flag
 }

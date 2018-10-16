@@ -6,8 +6,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/flier/rsocket-go/pkg/rsocket/frame"
+	"go.uber.org/zap"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 )
 
 // Requester to submit requests on an RSocket connection.
@@ -32,28 +34,28 @@ type Requester interface {
 
 // Requester Side of a RSocket. Sends [Frame]s to a [RSocketResponder]
 type rSocketRequester struct {
-	conn               Conn
+	*zap.Logger
+	frameSender        FrameSender
 	streamIDs          StreamIDs
 	streamRequestLimit uint
-	frameSender        FrameSender
 	senders            *sync.Map
 	receivers          *sync.Map
 }
 
 // NewRequester create a new Requester.
-func NewRequester(conn Conn, streamIDs StreamIDs, streamRequestLimit uint) Requester {
+func NewRequester(logger *zap.Logger, frameSender FrameSender, streamIDs StreamIDs, streamRequestLimit uint) Requester {
 	return &rSocketRequester{
-		conn:               conn,
+		Logger:             logger,
+		frameSender:        frameSender,
 		streamIDs:          streamIDs,
 		streamRequestLimit: streamRequestLimit,
-		frameSender:        make(FrameSender),
 		senders:            new(sync.Map),
 		receivers:          new(sync.Map),
 	}
 }
 
 func (requester *rSocketRequester) Close() (err error) {
-	return requester.conn.Close()
+	return nil
 }
 
 type resultReceiver chan *Result
@@ -163,7 +165,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 						return requester.sendFrame(ctx, errorFrame)
 					}
 
-					if err := requester.sendFrame(ctx, result.Payload.buildPayloadFrame(streamID)); err != nil {
+					if err := requester.sendFrame(ctx, result.Payload.buildPayloadFrame(streamID, false)); err != nil {
 						return err
 					}
 				}
@@ -175,6 +177,11 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 }
 
 func (requester *rSocketRequester) sendFrame(ctx context.Context, frame frame.Frame) error {
+	requester.Debug("send frame",
+		zap.Uint32("stream", uint32(frame.StreamID())),
+		zap.Stringer("type", frame.Type()),
+		zap.Reflect("frame", frame))
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -211,6 +218,8 @@ func (requester *rSocketRequester) receivePayloads(ctx context.Context, streamID
 					if requestN == 0 {
 						requestN = requester.streamRequestLimit
 
+						requester.Debug("requestN", zap.Uint32("stream", uint32(streamID)), zap.Uint("n", requestN))
+
 						select {
 						case <-ctx.Done():
 							return ctx.Err()
@@ -230,10 +239,17 @@ func (requester *rSocketRequester) receivePayloads(ctx context.Context, streamID
 func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Frame) error {
 	streamID := f.StreamID()
 
+	requester.Debug("handle frame",
+		zap.Uint32("stream", uint32(streamID)),
+		zap.Stringer("type", f.Type()),
+		zap.Uint16("flags", uint16(f.Flags())))
+
 	if receiver, ok := requester.receivers.Load(streamID); ok {
 		receiver := receiver.(resultReceiver)
 
 		complete := func() {
+			requester.Debug("stream complete", zap.Uint32("stream", uint32(streamID)))
+
 			requester.senders.Delete(streamID)
 			requester.receivers.Delete(streamID)
 
@@ -241,6 +257,8 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 		}
 
 		receive := func(result *Result) error {
+			requester.Debug("forward response", zap.Reflect("payload", result.Payload), zap.Error(result.Err))
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -273,8 +291,14 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 				}))
 			}
 
+			if !f.Complete() && !f.Next() {
+				return frame.ErrInvalid
+			}
+
 		case *frame.RequestNFrame:
 			if sender, ok := requester.senders.Load(streamID); ok {
+				requester.Debug("N requests", zap.Uint32("n", f.Requests))
+
 				sender.(*semaphore.Weighted).Release(int64(f.Requests))
 
 				return nil

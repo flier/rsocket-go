@@ -56,7 +56,7 @@ const (
 	ErrExtension ErrorCode = 0xFFFFFFFF
 )
 
-func (code ErrorCode) String() string {
+func (code ErrorCode) Error() string {
 	switch code {
 	case ErrReserved:
 		return "RESERVED"

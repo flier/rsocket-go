@@ -14,6 +14,24 @@ type Payload struct {
 	Data        []byte
 }
 
+// Text creates a plain/text Payload without metadata.
+func Text(s string) *Payload {
+	return &Payload{false, nil, []byte(s)}
+}
+
+// Text returnes the data as plain/text.
+func (payload *Payload) Text() string {
+	return string(payload.Data)
+}
+
+// WithMetadata returns a Payload with metadata.
+func (payload *Payload) WithMetadata(metadata Metadata) *Payload {
+	payload.HasMetadata = true
+	payload.Metadata = metadata
+
+	return payload
+}
+
 func (payload *Payload) buildRequestResponseFrame(streamID StreamID) *frame.RequestResponseFrame {
 	return frame.NewRequestResponseFrame(streamID, false, payload.HasMetadata, payload.Metadata, payload.Data)
 }
@@ -30,8 +48,8 @@ func (payload *Payload) buildRequestChannelFrame(streamID StreamID, initReqs uin
 	return frame.NewRequestChannelFrame(streamID, false, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func (payload *Payload) buildPayloadFrame(streamID StreamID) *frame.PayloadFrame {
-	return frame.NewPayloadFrame(streamID, false, false, true, payload.HasMetadata, payload.Metadata, payload.Data)
+func (payload *Payload) buildPayloadFrame(streamID StreamID, complete bool) *frame.PayloadFrame {
+	return frame.NewPayloadFrame(streamID, false, complete, true, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
 func buildCompleteFrame(streamID StreamID) *frame.PayloadFrame {
