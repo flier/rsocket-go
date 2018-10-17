@@ -424,10 +424,11 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 		zap.Uint16("flags", uint16(f.Flags())))
 
 	if receiver, ok := requester.findReceiver(streamID); ok {
-		complete := func() {
-			requester.Debug("stream complete", zap.Uint32("stream", uint32(streamID)))
+		complete := func(reason error) {
+			requester.Debug("stream complete",
+				zap.Uint32("stream", uint32(streamID)),
+				zap.Error(reason))
 
-			requester.senders.Delete(streamID)
 			requester.receivers.Delete(streamID)
 
 			close(receiver)
@@ -435,14 +436,15 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 
 		switch f := f.(type) {
 		case *frame.ErrorFrame:
-			defer complete()
+			defer complete(f.Err())
 
 			return receiver.receiveErr(ctx, f.Err())
 
 		case *frame.CancelFrame:
-			defer complete()
+			defer complete(context.Canceled)
 
 			if sender, ok := requester.findSender(streamID); ok {
+				requester.senders.Delete(streamID)
 				sender.cancel()
 			}
 
@@ -450,7 +452,7 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 
 		case *frame.PayloadFrame:
 			if f.Complete() {
-				defer complete()
+				defer complete(nil)
 			}
 
 			if f.Next() {
