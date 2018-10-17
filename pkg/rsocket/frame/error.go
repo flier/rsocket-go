@@ -85,6 +85,10 @@ func (code ErrorCode) Error() string {
 	}
 }
 
+func (code ErrorCode) WithMessage(msg string) *Error {
+	return &Error{Code: code, Data: msg}
+}
+
 // ErrorFrame reports error at connection or application level.
 type ErrorFrame struct {
 	*Header

@@ -72,7 +72,7 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 	streamID := requester.streamIDs.Next()
 	receiver := requester.newReceiver(streamID)
 
-	requestResponseFrame := payload.buildRequestResponseFrame(streamID)
+	requestResponseFrame := buildRequestResponseFrame(streamID, payload)
 
 	if err := requester.sendFrame(ctx, requestResponseFrame); err != nil {
 		return nil, err
@@ -83,6 +83,10 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 		return nil, ctx.Err()
 
 	case result := <-receiver:
+		if result == nil {
+			return nil, context.Canceled
+		}
+
 		return result.Payload, result.Err
 	}
 }
@@ -90,7 +94,7 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 func (requester *rSocketRequester) FireAndForget(ctx context.Context, payload *Payload) error {
 	streamID := requester.streamIDs.Next()
 
-	return requester.sendFrame(ctx, payload.buildRequestFireAndForgetFrame(streamID))
+	return requester.sendFrame(ctx, buildRequestFireAndForgetFrame(streamID, payload))
 }
 
 func (requester *rSocketRequester) MetadataPush(ctx context.Context, metadata Metadata) (err error) {
@@ -178,7 +182,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 						return sendError(result.Err)
 					}
 
-					if err := requester.sendFrame(ctx, result.Payload.buildPayloadFrame(streamID, false)); err != nil {
+					if err := requester.sendFrame(ctx, buildPayloadFrame(streamID, false, result.Payload)); err != nil {
 						return sendError(err)
 					}
 				}
@@ -209,6 +213,7 @@ func (requester *rSocketRequester) receivePayloads(ctx context.Context, streamID
 
 	go func() error {
 		defer cancel()
+		defer close(results)
 
 		requestN := requester.streamRequestLimit
 
@@ -221,6 +226,7 @@ func (requester *rSocketRequester) receivePayloads(ctx context.Context, streamID
 				if result == nil {
 					return nil
 				}
+
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
@@ -284,7 +290,7 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 		case *frame.ErrorFrame:
 			defer complete()
 
-			return receive(Err(&Error{f.Code, f.Data}))
+			return receive(Err(f.Err()))
 
 		case *frame.CancelFrame:
 			defer complete()
