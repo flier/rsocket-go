@@ -319,6 +319,15 @@ func (requester *rSocketRequester) receivePayloads(
 		requestN := requester.streamRequestLimit
 
 		for {
+			if requestN == 0 {
+				requestN = requester.streamRequestLimit
+				requestNFrame := frame.NewRequestNFrame(streamID, uint32(requestN))
+
+				if err := requester.sendFrame(ctx, requestNFrame); err != nil {
+					return err
+				}
+			}
+
 			payload, err := receiver.Recv(ctx)
 
 			if payload == nil && err == nil {
@@ -332,20 +341,6 @@ func (requester *rSocketRequester) receivePayloads(
 			}
 
 			requestN--
-
-			if requestN == 0 {
-				requestN = requester.streamRequestLimit
-
-				requester.Debug("request more payloads",
-					zap.Uint32("stream", uint32(streamID)),
-					zap.Uint("n", requestN))
-
-				requestNFrame := frame.NewRequestNFrame(streamID, uint32(requestN))
-
-				if err := requester.sendFrame(ctx, requestNFrame); err != nil {
-					return err
-				}
-			}
 		}
 	}()
 
