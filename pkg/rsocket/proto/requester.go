@@ -427,9 +427,7 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 	} else if streamID > requester.streamIDs.Current() {
 		return fmt.Errorf("Client received %s frame for non-existent stream (%d)", f, streamID)
 	} else {
-		requester.Debug("Skip frame for outdated stream",
-			zap.Uint32("stream", uint32(streamID)),
-			zap.Stringer("frame", f))
+		// Receiving a Request frame on a Stream ID that is already in use MUST be ignored.
 	}
 
 	return nil
