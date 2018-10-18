@@ -3,34 +3,34 @@ package frame
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"io"
+
+	"go.uber.org/zap"
 )
+
+const frameLengthSize = uint24Size
+
+// ReadFrameDumper dumps read frame
+var ReadFrameDumper io.Writer
 
 // Reader implements convenience methods for reading frames from a RSocket connection.
 type Reader struct {
+	*zap.Logger
 	io.Reader
-	version *Version
-	buf     *bytes.Buffer
+	buf *bytes.Buffer
 }
 
 // NewReader returns a new Reader reading from r.
-func NewReader(r io.Reader, version *Version) *Reader {
-	return &Reader{r, version, nil}
-}
-
-func (r *Reader) frameLengthSize() int {
-	if r.version.lessThanOrEquals(v1) {
-		return uint32Size
-	}
-
-	return uint24Size
+func NewReader(logger *zap.Logger, r io.Reader) *Reader {
+	return &Reader{logger.Named("r"), r, nil}
 }
 
 // ReadFrame reads a frame from a RSocket connection.
 func (r *Reader) ReadFrame() (frame Frame, err error) {
 	for {
 		if r.buf == nil {
-			r.buf = bytes.NewBuffer(make([]byte, 0, r.frameLengthSize()))
+			r.buf = bytes.NewBuffer(make([]byte, 0, frameLengthSize))
 		}
 
 		if r.buf.Len() < r.buf.Cap() {
@@ -55,7 +55,7 @@ func (r *Reader) ReadFrame() (frame Frame, err error) {
 			}
 		}
 
-		if r.buf.Cap() == r.frameLengthSize() {
+		if r.buf.Cap() == frameLengthSize {
 			var len uint32
 
 			len, err = readUInt24(r.buf, binary.BigEndian)
@@ -72,6 +72,16 @@ func (r *Reader) ReadFrame() (frame Frame, err error) {
 
 			if err != nil {
 				return
+			}
+
+			r.Debug("read frame",
+				zap.Stringer("type", header.Type()),
+				zap.Binary("data", r.buf.Bytes()))
+
+			if ReadFrameDumper != nil {
+				hex.Dumper(ReadFrameDumper).Write(r.buf.Bytes())
+
+				WriteFrameDumper.Write([]byte("\n"))
 			}
 
 			frame, err = readFrame(r.buf, header)

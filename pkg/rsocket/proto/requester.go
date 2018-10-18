@@ -269,7 +269,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 
 func (requester *rSocketRequester) sendFrame(ctx context.Context, frame frame.Frame) error {
 	requester.Debug("send frame",
-		zap.Uint32("stream", uint32(frame.StreamID())),
+		zap.Stringer("stream", frame.StreamID()),
 		zap.Stringer("type", frame.Type()),
 		zap.Reflect("frame", frame))
 

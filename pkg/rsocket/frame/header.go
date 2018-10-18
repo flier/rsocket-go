@@ -2,11 +2,16 @@ package frame
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
 // StreamID is the stream identifiers
 type StreamID uint32
+
+func (id StreamID) String() string {
+	return fmt.Sprintf("#%d", id)
+}
 
 // Header of frame
 type Header struct {

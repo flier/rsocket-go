@@ -12,3 +12,5 @@ type Token = frame.Token
 
 // Error of the protocol
 type Error = frame.Error
+
+var LatestVersion = frame.V1

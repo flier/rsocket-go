@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
 	"github.com/flier/rsocket-go/pkg/rsocket/transport"
@@ -18,6 +20,13 @@ const defaultStreamRequestLimit = 128
 
 // DialOption configures a Dialer before it starts to connect the target URL.
 type DialOption func(*Dialer)
+
+// WithLogger configure the logger
+func WithLogger(logger *zap.Logger) DialOption {
+	return func(dialer *Dialer) {
+		dialer.Logger = logger
+	}
+}
 
 // WithProtocolVersion configure the protocol version
 func WithProtocolVersion(version proto.Version) DialOption {
@@ -132,6 +141,7 @@ func DialContext(ctx context.Context, target *url.URL, opts ...DialOption) (clnt
 
 // A Dialer contains options for connecting to a target URL.
 type Dialer struct {
+	*zap.Logger
 	Setup
 	Lease
 	Fragment
@@ -152,9 +162,15 @@ func (dialer *Dialer) Dial(target *url.URL) (Client, error) {
 
 // DialContext connects to the target URL using the provided context.
 func (dialer *Dialer) DialContext(ctx context.Context, target *url.URL) (client Client, err error) {
+	logger := dialer.Logger
+
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	var t transport.Transport
 
-	if t, err = transport.ForURI(target); err != nil {
+	if t, err = transport.ForURI(logger, target); err != nil {
 		return
 	}
 

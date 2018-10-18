@@ -4,41 +4,58 @@ import (
 	"context"
 	"net"
 
+	"go.uber.org/zap"
+
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
 )
 
 type tcpTransport struct {
+	*zap.Logger
 	network string
 	address string
 }
 
 func (transport *tcpTransport) Connect(ctx context.Context) (proto.Conn, error) {
-	addr, err := net.ResolveTCPAddr(transport.network, transport.address)
+	dialer := new(net.Dialer)
+
+	conn, err := dialer.DialContext(ctx, transport.network, transport.address)
 
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := net.DialTCP("tcp", nil, addr)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &tcpConn{conn}, nil
+	return &tcpConn{
+		transport.Logger,
+		conn.(*net.TCPConn),
+		proto.NewFramer(transport.Logger, conn),
+	}, nil
 }
 
 type tcpConn struct {
+	*zap.Logger
 	*net.TCPConn
+	*proto.Framer
 }
 
 var _ proto.Conn = (*tcpConn)(nil)
 
-func (conn *tcpConn) Send(ctx context.Context, frame frame.Frame) error {
-	return nil
+func (conn *tcpConn) Send(ctx context.Context, f frame.Frame) error {
+	conn.Info("send frame", zap.Stringer("type", f.Type()), zap.Stringer("stream", f.StreamID()))
+
+	n, err := conn.WriteFrame(f)
+
+	bytesSent.Add(float64(n))
+
+	return err
 }
 
 func (conn *tcpConn) Recv(ctx context.Context) (frame.Frame, error) {
-	return nil, nil
+	f, err := conn.ReadFrame()
+
+	conn.Info("received frame", zap.Stringer("type", f.Type()), zap.Stringer("stream", f.StreamID()))
+
+	bytesRecv.Add(float64(f.Size()))
+
+	return f, err
 }

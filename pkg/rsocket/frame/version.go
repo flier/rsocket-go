@@ -11,7 +11,8 @@ type Version struct {
 	Minor uint16
 }
 
-var v1 = Version{1, 0}
+// V1 version protocol
+var V1 = Version{1, 0}
 
 func (version *Version) lessThanOrEquals(other Version) bool {
 	if version.Major < other.Major {
