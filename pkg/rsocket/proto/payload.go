@@ -105,6 +105,12 @@ type PayloadSink struct {
 	C chan<- *Result
 }
 
+// Close the stream
+func (s *PayloadSink) Close() error {
+	close(s.C)
+	return nil
+}
+
 // Send the payload or erro to the stream or channel.
 func (s *PayloadSink) Send(ctx context.Context, result *Result) error {
 	select {

@@ -83,7 +83,7 @@ func asClient(callback func(ctx context.Context, requester *rSocketRequester)) r
 
 func asServer(callback func(ctx context.Context, cancel context.CancelFunc, requests FrameReceiver, responses FrameSender)) runCallback {
 	return func(env *testEnv) {
-		defer close(env.responses)
+		defer env.responses.Close()
 
 		Convey("RS -> Given a server responder", env.t, func() {
 			callback(env.ctx, env.cancel, env.requests, env.responses)
@@ -93,13 +93,19 @@ func asServer(callback func(ctx context.Context, cancel context.CancelFunc, requ
 
 type logFrameSender struct {
 	t *testing.T
-	C frameChan
+	c frameChan
+}
+
+func (sender logFrameSender) Close() error {
+	close(sender.c)
+
+	return nil
 }
 
 func (sender logFrameSender) Send(ctx context.Context, f frame.Frame) error {
 	sender.t.Logf("RQ -> RS: %s", f)
 
-	return sender.C.Send(ctx, f)
+	return sender.c.Send(ctx, f)
 }
 
 func run(t *testing.T, callbacks ...runCallback) {
@@ -305,20 +311,11 @@ func TestRequestChannelCompleteFromRequesterAndResponder(t *testing.T) {
 		asClient(func(ctx context.Context, requester *rSocketRequester) {
 			Convey("RQ -> RS: When payloads be ready before send request", func() {
 				requests := make(chan *Result, 16)
+				sink := &PayloadSink{requests}
 
-				send := func(payload *Payload) error {
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-
-					case requests <- &Result{payload, nil}:
-						return nil
-					}
-				}
-
-				So(send(Text("hello")), ShouldBeNil)
-				So(send(Text("world")), ShouldBeNil)
-				close(requests)
+				So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
+				So(sink.Send(ctx, Ok(Text("world"))), ShouldBeNil)
+				So(sink.Close(), ShouldBeNil)
 
 				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
 
@@ -404,25 +401,17 @@ func TestRequestChannelErrorFromRequesterAndResponderTerminates(t *testing.T) {
 
 				So(err, ShouldBeNil)
 				Convey("When payloads sent after request", func() {
-					send := func(result *Result) error {
-						select {
-						case <-ctx.Done():
-							return ctx.Err()
+					sink := &PayloadSink{requests}
 
-						case requests <- result:
-							return nil
-						}
-					}
-
-					So(send(Ok(Text("hello"))), ShouldBeNil)
+					So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
 
 					Convey("Then payload stream should be ready", func() {
 						payload, _ := responses.Recv(ctx)
 						So(payload, ShouldResemble, Text("world"))
 
 						Convey("Then send error", func() {
-							So(send(Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
-							close(requests)
+							So(sink.Send(ctx, Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
+							So(sink.Close(), ShouldBeNil)
 
 							Convey("Then the reciever should be close", func() {
 								payload, _ = responses.Recv(ctx)
@@ -504,26 +493,17 @@ func TestRequestChannelErrorFromRequesterAndResponderAlreadyCompleted(t *testing
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> RS: When payloads sent after request", func() {
-					send := func(result *Result) error {
-						select {
-						case <-ctx.Done():
-							return ctx.Err()
+					sink := &PayloadSink{requests}
 
-						case requests <- result:
-							return nil
-						}
-					}
-
-					So(send(Ok(Text("hello"))), ShouldBeNil)
+					So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
 
 					Convey("RQ -> RS: Then payload stream should be ready", func() {
 						payload, _ := responses.Recv(ctx)
 						So(payload, ShouldResemble, Text("world"))
 
 						Convey("RQ -> RS: Then send error", func() {
-							So(send(Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
-
-							close(requests)
+							So(sink.Send(ctx, Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
+							So(sink.Close(), ShouldBeNil)
 
 							Convey("RQ -> RS: Then the reciever should be close", func() {
 								payload, _ = responses.Recv(ctx)
@@ -603,17 +583,9 @@ func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> When payloads sent after request", func() {
-					send := func(payload *Payload) error {
-						select {
-						case <-ctx.Done():
-							return ctx.Err()
+					sink := &PayloadSink{requests}
 
-						case requests <- &Result{payload, nil}:
-							return nil
-						}
-					}
-
-					So(send(Text("hello")), ShouldBeNil)
+					So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
 
 					Convey("RQ -> RS: Then payload stream should be ready", func() {
 						payload, err := responses.Recv(ctx)
@@ -624,7 +596,7 @@ func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
 							So(err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
 
 							Convey("RQ -> RS: Then the send payload should be fail", func() {
-								So(send(Text("world")), ShouldBeNil)
+								So(sink.Send(ctx, Ok(Text("world"))), ShouldBeNil)
 							})
 						})
 					})

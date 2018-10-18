@@ -143,31 +143,17 @@ func (sender *resultSender) Requests(n uint32) {
 }
 
 type resultReceiver struct {
-	C chan *Result
+	*PayloadStream
+	*PayloadSink
 }
 
 func (requester *rSocketRequester) newResultReceiver(streamID StreamID, capacity uint) *resultReceiver {
-	receiver := &resultReceiver{make(chan *Result, capacity)}
+	c := make(chan *Result, capacity)
+	receiver := &resultReceiver{&PayloadStream{c}, &PayloadSink{c}}
 
 	requester.receivers.Store(streamID, receiver)
 
 	return receiver
-}
-
-func (receiver *resultReceiver) Recv(ctx context.Context) (*Payload, error) {
-	stream := &PayloadStream{receiver.C}
-
-	return stream.Recv(ctx)
-}
-
-func (receiver *resultReceiver) Close() {
-	close(receiver.C)
-}
-
-func (receiver *resultReceiver) Send(ctx context.Context, result *Result) error {
-	sink := &PayloadSink{receiver.C}
-
-	return sink.Send(ctx, result)
 }
 
 func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload *Payload) (*Payload, error) {
@@ -213,7 +199,7 @@ func (requester *rSocketRequester) RequestStream(ctx context.Context, payload *P
 
 	currentStreams.Inc()
 
-	return requester.receivePayloads(ctx, streamID, receiver.C, func() {
+	return requester.receivePayloads(ctx, streamID, receiver, func() {
 		currentStreams.Dec()
 	}), nil
 }
@@ -294,7 +280,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 		}()
 	}
 
-	return requester.receivePayloads(ctx, streamID, receiver.C, func() {
+	return requester.receivePayloads(ctx, streamID, receiver, func() {
 		currentChannels.Dec()
 	}), nil
 }
@@ -317,10 +303,11 @@ func (requester *rSocketRequester) sendFrame(ctx context.Context, frame frame.Fr
 func (requester *rSocketRequester) receivePayloads(
 	ctx context.Context,
 	streamID StreamID,
-	receiver <-chan *Result,
+	receiver *resultReceiver,
 	destructor func(),
 ) *PayloadStream {
 	results := make(chan *Result)
+	sink := &PayloadSink{results}
 
 	go func() error {
 		defer destructor()
@@ -330,35 +317,31 @@ func (requester *rSocketRequester) receivePayloads(
 		requestN := requester.streamRequestLimit
 
 		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
+			payload, err := receiver.Recv(ctx)
 
-			case result := <-receiver:
-				if result == nil {
-					return nil
-				}
+			if payload == nil && err == nil {
+				return nil
+			}
 
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
+			err = sink.Send(ctx, &Result{payload, err})
 
-				case results <- result:
-					requestN--
+			if err != nil {
+				return err
+			}
 
-					if requestN == 0 {
-						requestN = requester.streamRequestLimit
+			requestN--
 
-						requester.Debug("request more payloads",
-							zap.Uint32("stream", uint32(streamID)),
-							zap.Uint("n", requestN))
+			if requestN == 0 {
+				requestN = requester.streamRequestLimit
 
-						requestNFrame := frame.NewRequestNFrame(streamID, uint32(requestN))
+				requester.Debug("request more payloads",
+					zap.Uint32("stream", uint32(streamID)),
+					zap.Uint("n", requestN))
 
-						if err := requester.sendFrame(ctx, requestNFrame); err != nil {
-							return err
-						}
-					}
+				requestNFrame := frame.NewRequestNFrame(streamID, uint32(requestN))
+
+				if err := requester.sendFrame(ctx, requestNFrame); err != nil {
+					return err
 				}
 			}
 		}

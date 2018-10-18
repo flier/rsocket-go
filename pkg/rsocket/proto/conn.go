@@ -9,6 +9,8 @@ import (
 
 // FrameSender sends frame.
 type FrameSender interface {
+	io.Closer
+
 	Send(ctx context.Context, frame frame.Frame) error
 }
 
@@ -18,6 +20,16 @@ type FrameReceiver interface {
 }
 
 type frameChan chan frame.Frame
+
+var _ FrameSender = frameChan(nil)
+var _ FrameReceiver = frameChan(nil)
+
+// Close the thanncel
+func (c frameChan) Close() error {
+	close(c)
+
+	return nil
+}
 
 // Send frame to channel
 func (c frameChan) Send(ctx context.Context, frame frame.Frame) error {
