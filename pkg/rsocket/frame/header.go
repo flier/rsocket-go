@@ -55,6 +55,10 @@ func (header *Header) Flags() Flags {
 	return header.flags
 }
 
+func (header *Header) String() string {
+	return header.frameType.String()
+}
+
 // Size returns the encoded size of the header.
 func (header *Header) Size() int {
 	return headerSize

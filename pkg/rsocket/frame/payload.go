@@ -60,6 +60,20 @@ func readPayloadFrame(r io.Reader, header *Header) (frame *PayloadFrame, err err
 	return
 }
 
+func (payload *PayloadFrame) String() string {
+	if payload.Next() {
+		if payload.Complete() {
+			return "PAYLOAD[COMPLETE]"
+		}
+
+		return "PAYLOAD"
+	} else if payload.Complete() {
+		return "COMPLETE"
+	} else {
+		return "PAYLOAD[NULL]"
+	}
+}
+
 // Size returns the encoded size of the frame.
 func (payload *PayloadFrame) Size() int {
 	return payload.Header.Size() + payload.Metadata.Size() + len(payload.Data)

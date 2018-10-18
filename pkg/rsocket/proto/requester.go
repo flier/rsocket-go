@@ -187,6 +187,12 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 
 	select {
 	case <-ctx.Done():
+		if ctx.Err() == context.Canceled {
+			if err := requester.sendFrame(ctx, frame.NewCancelFrame(streamID)); err != nil {
+				return nil, err
+			}
+		}
+
 		return nil, ctx.Err()
 
 	case result := <-receiver:
@@ -329,15 +335,13 @@ func (requester *rSocketRequester) sendFrame(ctx context.Context, frame frame.Fr
 		zap.Stringer("type", frame.Type()),
 		zap.Reflect("frame", frame))
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	err := requester.frameSender.Send(ctx, frame)
 
-	case requester.frameSender <- frame:
+	if err == nil {
 		frameSent.With(prometheus.Labels{typeLabel: frame.Type().String()}).Inc()
-
-		return nil
 	}
+
+	return err
 }
 
 func (requester *rSocketRequester) receivePayloads(

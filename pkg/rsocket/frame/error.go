@@ -85,6 +85,7 @@ func (code ErrorCode) Error() string {
 	}
 }
 
+// WithMessage returns a Error with message.
 func (code ErrorCode) WithMessage(msg string) *Error {
 	return &Error{Code: code, Data: msg}
 }
@@ -135,7 +136,11 @@ func (err *Error) Error() string {
 
 // Err returns the formated error
 func (frame *ErrorFrame) Err() error {
-	return &Error{frame.Code, frame.Data}
+	return frame.Error
+}
+
+func (frame *ErrorFrame) String() string {
+	return fmt.Sprintf("ERROR[%s]", frame.Code)
 }
 
 // Size returns the encoded size of the frame.
