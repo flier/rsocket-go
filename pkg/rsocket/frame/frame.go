@@ -2,6 +2,7 @@ package frame
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -10,6 +11,8 @@ var ErrUnknownFrameType = errors.New("unknown frame type")
 
 // Frame is generic single message containing a request, response, or protocol processing.
 type Frame interface {
+	fmt.Stringer
+
 	io.WriterTo
 
 	StreamID() StreamID
