@@ -50,7 +50,7 @@ func (env *testEnv) Serv(wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		for {
-			f, err := FrameReceiver(env.responses).Recv(env.ctx)
+			f, err := env.responses.Recv(env.ctx)
 
 			if err != nil {
 				return err
@@ -91,17 +91,15 @@ func asServer(callback func(ctx context.Context, cancel context.CancelFunc, requ
 	}
 }
 
-type contextKey string
-type logFrameSender chan frame.Frame
-
-const tKey = contextKey("t")
+type logFrameSender struct {
+	t *testing.T
+	C frameChan
+}
 
 func (sender logFrameSender) Send(ctx context.Context, f frame.Frame) error {
-	if t, ok := ctx.Value(tKey).(*testing.T); ok {
-		t.Logf("RQ -> RS: %s", f)
-	}
+	sender.t.Logf("RQ -> RS: %s", f)
 
-	return frameChan(sender).Send(ctx, f)
+	return sender.C.Send(ctx, f)
 }
 
 func run(t *testing.T, callbacks ...runCallback) {
@@ -110,9 +108,7 @@ func run(t *testing.T, callbacks ...runCallback) {
 
 	requests := make(frameChan)
 	responses := make(frameChan)
-
-	ctx = context.WithValue(ctx, tKey, t)
-	requester := NewRequester(logger, logFrameSender(requests), ClientStreamIDs(), uint(initReqs)).(*rSocketRequester)
+	requester := NewRequester(logger, logFrameSender{t, requests}, ClientStreamIDs(), uint(initReqs)).(*rSocketRequester)
 
 	wg := new(sync.WaitGroup)
 	defer wg.Wait()
@@ -150,23 +146,14 @@ func TestRequestStreamComplete(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> RS: Then payload stream should be ready", func() {
-					receive := func() *Result {
-						select {
-						case <-ctx.Done():
-							return &Result{nil, ctx.Err()}
+					payload, _ := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
 
-						case result, ok := <-responses:
-							if !ok {
-								return nil
-							}
+					payload, _ = responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("bar"))
 
-							return result
-						}
-					}
-
-					So(receive().Payload, ShouldResemble, Text("foo"))
-					So(receive().Payload, ShouldResemble, Text("bar"))
-					So(receive(), ShouldBeNil)
+					payload, _ = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
 				})
 			})
 		}),
@@ -207,24 +194,17 @@ func TestRequestStreamWithError(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> RS: Then response stream should be ready", func() {
-					receive := func() *Result {
-						select {
-						case <-ctx.Done():
-							return &Result{nil, ctx.Err()}
+					payload, err := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
 
-						case result, ok := <-responses:
-							if !ok {
-								return nil
-							}
+					payload, err = responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("bar"))
 
-							return result
-						}
-					}
+					payload, err = responses.Recv(ctx)
+					So(err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
 
-					So(receive().Payload, ShouldResemble, Text("foo"))
-					So(receive().Payload, ShouldResemble, Text("bar"))
-					So(receive().Err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
-					So(receive(), ShouldBeNil)
+					payload, err = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
 				})
 			})
 		}),
@@ -269,24 +249,17 @@ func TestRequestStreamCanceled(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("Then payload stream should be ready", func() {
-					receive := func() *Result {
-						select {
-						case <-ctx.Done():
-							return &Result{nil, ctx.Err()}
+					payload, err := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
 
-						case result, ok := <-responses:
-							if !ok {
-								return nil
-							}
+					payload, err = responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("bar"))
 
-							return result
-						}
-					}
+					payload, err = responses.Recv(ctx)
+					So(err, ShouldEqual, context.Canceled)
 
-					So(receive().Payload, ShouldResemble, Text("foo"))
-					So(receive().Payload, ShouldResemble, Text("bar"))
-					So(receive().Err, ShouldEqual, context.Canceled)
-					So(receive(), ShouldBeNil)
+					payload, err = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
 				})
 			})
 		}),
@@ -347,28 +320,19 @@ func TestRequestChannelCompleteFromRequesterAndResponder(t *testing.T) {
 				So(send(Text("world")), ShouldBeNil)
 				close(requests)
 
-				responses, err := requester.RequestChannel(ctx, requests)
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
 
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> RS: Then payload stream should be ready", func() {
-					receive := func() *Result {
-						select {
-						case <-ctx.Done():
-							return &Result{nil, ctx.Err()}
+					payload, _ := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
 
-						case result, ok := <-responses:
-							if !ok {
-								return nil
-							}
+					payload, _ = responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("bar"))
 
-							return result
-						}
-					}
-
-					So(receive().Payload, ShouldResemble, Text("foo"))
-					So(receive().Payload, ShouldResemble, Text("bar"))
-					So(receive(), ShouldBeNil)
+					payload, _ = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
 				})
 			})
 		}),
@@ -436,7 +400,7 @@ func TestRequestChannelErrorFromRequesterAndResponderTerminates(t *testing.T) {
 			requests := make(chan *Result, 128)
 
 			Convey("Then send request immediately", func() {
-				responses, err := requester.RequestChannel(ctx, requests)
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
 
 				So(err, ShouldBeNil)
 				Convey("When payloads sent after request", func() {
@@ -453,28 +417,16 @@ func TestRequestChannelErrorFromRequesterAndResponderTerminates(t *testing.T) {
 					So(send(Ok(Text("hello"))), ShouldBeNil)
 
 					Convey("Then payload stream should be ready", func() {
-						receive := func() *Result {
-							select {
-							case <-ctx.Done():
-								return &Result{nil, ctx.Err()}
-
-							case result, ok := <-responses:
-								if !ok {
-									return nil
-								}
-
-								return result
-							}
-						}
-
-						So(receive().Payload, ShouldResemble, Text("world"))
+						payload, _ := responses.Recv(ctx)
+						So(payload, ShouldResemble, Text("world"))
 
 						Convey("Then send error", func() {
 							So(send(Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
 							close(requests)
 
 							Convey("Then the reciever should be close", func() {
-								So(receive(), ShouldBeNil)
+								payload, _ = responses.Recv(ctx)
+								So(payload, ShouldBeNil)
 							})
 						})
 					})
@@ -548,7 +500,7 @@ func TestRequestChannelErrorFromRequesterAndResponderAlreadyCompleted(t *testing
 			requests := make(chan *Result, 128)
 
 			Convey("RQ -> RS: Then send request immediately", func() {
-				responses, err := requester.RequestChannel(ctx, requests)
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> RS: When payloads sent after request", func() {
@@ -565,21 +517,8 @@ func TestRequestChannelErrorFromRequesterAndResponderAlreadyCompleted(t *testing
 					So(send(Ok(Text("hello"))), ShouldBeNil)
 
 					Convey("RQ -> RS: Then payload stream should be ready", func() {
-						receive := func() *Result {
-							select {
-							case <-ctx.Done():
-								return &Result{nil, ctx.Err()}
-
-							case result, ok := <-responses:
-								if !ok {
-									return nil
-								}
-
-								return result
-							}
-						}
-
-						So(receive().Payload, ShouldResemble, Text("world"))
+						payload, _ := responses.Recv(ctx)
+						So(payload, ShouldResemble, Text("world"))
 
 						Convey("RQ -> RS: Then send error", func() {
 							So(send(Err(frame.ErrApplicationError.WithMessage("for test"))), ShouldBeNil)
@@ -587,7 +526,8 @@ func TestRequestChannelErrorFromRequesterAndResponderAlreadyCompleted(t *testing
 							close(requests)
 
 							Convey("RQ -> RS: Then the reciever should be close", func() {
-								So(receive(), ShouldBeNil)
+								payload, _ = responses.Recv(ctx)
+								So(payload, ShouldBeNil)
 							})
 						})
 					})
@@ -659,7 +599,7 @@ func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
 			requests := make(chan *Result, 128)
 
 			Convey("RQ -> RS: Then send request immediately", func() {
-				responses, err := requester.RequestChannel(ctx, requests)
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
 				So(err, ShouldBeNil)
 
 				Convey("RQ -> When payloads sent after request", func() {
@@ -676,24 +616,12 @@ func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
 					So(send(Text("hello")), ShouldBeNil)
 
 					Convey("RQ -> RS: Then payload stream should be ready", func() {
-						receive := func() *Result {
-							select {
-							case <-ctx.Done():
-								return &Result{nil, ctx.Err()}
-
-							case result, ok := <-responses:
-								if !ok {
-									return nil
-								}
-
-								return result
-							}
-						}
-
-						So(receive().Payload, ShouldResemble, Text("world"))
+						payload, err := responses.Recv(ctx)
+						So(payload, ShouldResemble, Text("world"))
 
 						Convey("RQ -> RS: Then recive error", func() {
-							So(receive().Err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
+							payload, err = responses.Recv(ctx)
+							So(err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
 
 							Convey("RQ -> RS: Then the send payload should be fail", func() {
 								So(send(Text("world")), ShouldBeNil)
