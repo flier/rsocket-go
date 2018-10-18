@@ -2,6 +2,7 @@ package frame
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -285,6 +286,7 @@ type RequestChannelFrame struct {
 func NewRequestChannelFrame(
 	streamID StreamID,
 	follows bool,
+	complete bool,
 	initReqs uint32,
 	hasMetadata bool,
 	metadata Metadata,
@@ -297,6 +299,9 @@ func NewRequestChannelFrame(
 	}
 	if follows {
 		flags.Set(FlagFollows)
+	}
+	if complete {
+		flags.Set(FlagComplete)
 	}
 
 	return &RequestChannelFrame{
@@ -333,6 +338,14 @@ func readRequestChannelFrame(r io.Reader, header *Header) (frame *RequestChannel
 	}
 
 	return
+}
+
+func (request *RequestChannelFrame) String() string {
+	if request.Complete() {
+		return fmt.Sprintf("%s[COMPLETE]", request.Type())
+	}
+
+	return request.Type().String()
 }
 
 // Size returns the encoded size of the frame.

@@ -226,7 +226,8 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 		return requester.sendFrame(ctx, f)
 	}
 
-	payload := new(Payload)
+	var complete bool
+	var payload *Payload
 
 	if result, ok := payloads.TryRecv(ctx); ok {
 		if result.Payload != nil {
@@ -236,14 +237,15 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 				defer sendError(ctx, result.Err)
 			} else if result.Payload == nil {
 				defer requester.sendFrame(ctx, buildCompleteFrame(streamID))
+
+				complete = true
 			}
 
 			payloads = nil
 		}
 	}
 
-	requestChannelFrame := frame.NewRequestChannelFrame(streamID, false, uint32(initReqs),
-		payload.HasMetadata, payload.Metadata, payload.Data)
+	requestChannelFrame := buildRequestChannelFrame(streamID, complete, uint32(initReqs), payload)
 
 	if err := requester.sendFrame(ctx, requestChannelFrame); err != nil {
 		return nil, err

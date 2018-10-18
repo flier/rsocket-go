@@ -569,8 +569,9 @@ func TestRequestChannelErrorFromRequesterAndResponderAlreadyCompleted(t *testing
 
 // RQ -> RS: REQUEST_CHANNEL
 // RQ -> RS: PAYLOAD*
+//
 // intermixed with
-
+//
 // RS -> RQ: PAYLOAD*
 // RS -> RQ: ERROR[APPLICATION_ERROR|REJECTED|CANCELED|INVALID]
 func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
@@ -637,6 +638,159 @@ func TestRequestChannelErrorFromResponderAndRequesterTerminates(t *testing.T) {
 
 								errorFrame := frame.NewErrorFrame(f.StreamID(), frame.ErrApplicationError, "for test")
 								So(responses.Send(ctx, errorFrame), ShouldBeNil)
+							})
+						})
+					})
+				})
+			})
+		}),
+	)
+}
+
+// RQ -> RS: REQUEST_CHANNEL
+// RQ -> RS: PAYLOAD*
+// RQ -> RS: COMPLETE
+//
+// intermixed with
+//
+// RS -> RQ: PAYLOAD*
+// RS -> RQ: ERROR[APPLICATION_ERROR|REJECTED|CANCELED|INVALID]
+func TestRequestChannelErrorFromResponderAndRequesterAlreadyCompleted(t *testing.T) {
+	run(t,
+		asClient(func(ctx context.Context, requester *rSocketRequester) {
+			Convey("RQ -> RS: When payloads be ready before send request", func() {
+				requests := make(chan *Result, 16)
+				sink := &PayloadSink{requests}
+
+				So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
+				So(sink.Send(ctx, Ok(Text("world"))), ShouldBeNil)
+				So(sink.Close(), ShouldBeNil)
+
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
+
+				So(err, ShouldBeNil)
+
+				Convey("RQ -> RS: Then payload stream should be ready", func() {
+					payload, _ := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
+
+					_, err = responses.Recv(ctx)
+					So(err, ShouldResemble, frame.ErrApplicationError.WithMessage("for test"))
+
+					payload, _ = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
+				})
+			})
+		}),
+		asServer(func(ctx context.Context, cancel context.CancelFunc, requests FrameReceiver, responses FrameSender) {
+			Convey("RS -> RQ: Then channel request should be ready", func() {
+				f, err := requests.Recv(ctx)
+				So(err, ShouldBeNil)
+				checkFrameHeader(f, 1, frame.TypeRequestChannel, 0)
+
+				Convey("RS -> RQ: Then request payload should be nil", func() {
+					requestFrame := f.(*frame.RequestChannelFrame)
+
+					So(requestFrame, ShouldNotBeNil)
+					So(requestFrame.InitialRequests, ShouldEqual, initReqs)
+					So(string(requestFrame.Data), ShouldEqual, "hello")
+
+					Convey("RS -> RQ: Then send requestN back to requester", func() {
+						requestNFrame := frame.NewRequestNFrame(f.StreamID(), uint32(initReqs))
+
+						So(responses.Send(ctx, requestNFrame), ShouldBeNil)
+
+						Convey("RS -> RQ: Then payload should be sent", func() {
+							f, err := requests.Recv(ctx)
+							So(err, ShouldBeNil)
+							checkFrameHeader(f, 1, frame.TypePayload, frame.FlagNext)
+
+							payloadFrame := f.(*frame.PayloadFrame)
+							So(payloadFrame, ShouldNotBeNil)
+							So(string(payloadFrame.Data), ShouldEqual, "world")
+
+							Convey("RS -> RQ: Then send response and error", func() {
+								payloadFrame := buildPayloadFrame(f.StreamID(), false, Text("foo"))
+								So(responses.Send(ctx, payloadFrame), ShouldBeNil)
+
+								errorFrame := frame.NewErrorFrame(f.StreamID(), frame.ErrApplicationError, "for test")
+								So(responses.Send(ctx, errorFrame), ShouldBeNil)
+							})
+						})
+					})
+				})
+			})
+		}),
+	)
+}
+
+// RQ -> RS: REQUEST_CHANNEL
+// RQ -> RS: PAYLOAD*
+// RQ -> RS: COMPLETE
+// RQ -> RS: CANCEL
+//
+// intermixed with
+//
+// RS -> RQ: PAYLOAD*
+func TestRequestChannelCancelFromRequesterAndResponderTerminates(t *testing.T) {
+	run(t,
+		asClient(func(ctx context.Context, requester *rSocketRequester) {
+			Convey("RQ -> RS: When payloads be ready before send request", func() {
+				requests := make(chan *Result, 16)
+				sink := &PayloadSink{requests}
+
+				So(sink.Send(ctx, Ok(Text("hello"))), ShouldBeNil)
+				So(sink.Send(ctx, Ok(Text("world"))), ShouldBeNil)
+				So(sink.Send(ctx, Err(context.Canceled)), ShouldBeNil)
+				So(sink.Close(), ShouldBeNil)
+
+				responses, err := requester.RequestChannel(ctx, &PayloadStream{requests})
+
+				So(err, ShouldBeNil)
+
+				Convey("RQ -> RS: Then payload stream should be ready", func() {
+					payload, _ := responses.Recv(ctx)
+					So(payload, ShouldResemble, Text("foo"))
+
+					payload, err = responses.Recv(ctx)
+					So(payload, ShouldBeNil)
+					So(err, ShouldEqual, context.Canceled)
+				})
+			})
+		}),
+		asServer(func(ctx context.Context, cancel context.CancelFunc, requests FrameReceiver, responses FrameSender) {
+			Convey("RS -> RQ: Then channel request should be ready", func() {
+				f, err := requests.Recv(ctx)
+				So(err, ShouldBeNil)
+				checkFrameHeader(f, 1, frame.TypeRequestChannel, 0)
+
+				Convey("RS -> RQ: Then request payload should be nil", func() {
+					requestFrame := f.(*frame.RequestChannelFrame)
+
+					So(requestFrame, ShouldNotBeNil)
+					So(requestFrame.InitialRequests, ShouldEqual, initReqs)
+					So(string(requestFrame.Data), ShouldEqual, "hello")
+
+					Convey("RS -> RQ: Then send requestN back to requester", func() {
+						requestNFrame := frame.NewRequestNFrame(f.StreamID(), uint32(initReqs))
+						So(responses.Send(ctx, requestNFrame), ShouldBeNil)
+
+						Convey("RS -> RQ: Then payload should be sent", func() {
+							f, err := requests.Recv(ctx)
+							So(err, ShouldBeNil)
+							checkFrameHeader(f, 1, frame.TypePayload, frame.FlagNext)
+
+							payloadFrame := f.(*frame.PayloadFrame)
+							So(payloadFrame, ShouldNotBeNil)
+							So(string(payloadFrame.Data), ShouldEqual, "world")
+
+							Convey("RS -> RQ: Then send response and error", func() {
+								payloadFrame := buildPayloadFrame(f.StreamID(), false, Text("foo"))
+								So(responses.Send(ctx, payloadFrame), ShouldBeNil)
+
+								f, err := requests.Recv(ctx)
+								So(err, ShouldBeNil)
+								checkFrameHeader(f, 1, frame.TypeCancel, 0)
 							})
 						})
 					})

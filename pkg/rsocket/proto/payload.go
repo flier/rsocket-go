@@ -133,8 +133,12 @@ func buildRequestStreamFrame(streamID StreamID, initReqs uint32, payload *Payloa
 	return frame.NewRequestStreamFrame(streamID, false, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func buildRequestChannelFrame(streamID StreamID, initReqs uint32, payload *Payload) *frame.RequestChannelFrame {
-	return frame.NewRequestChannelFrame(streamID, false, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
+func buildRequestChannelFrame(streamID StreamID, complete bool, initReqs uint32, payload *Payload) *frame.RequestChannelFrame {
+	if payload == nil {
+		return frame.NewRequestChannelFrame(streamID, false, complete, initReqs, false, nil, nil)
+	}
+
+	return frame.NewRequestChannelFrame(streamID, false, complete, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
 func buildPayloadFrame(streamID StreamID, complete bool, payload *Payload) *frame.PayloadFrame {
