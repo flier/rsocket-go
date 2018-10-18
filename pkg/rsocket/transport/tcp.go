@@ -1,9 +1,10 @@
-package client
+package transport
 
 import (
 	"context"
 	"net"
 
+	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
 )
 
@@ -34,10 +35,10 @@ type tcpConn struct {
 
 var _ proto.Conn = (*tcpConn)(nil)
 
-func (conn *tcpConn) Sender() proto.FrameSender {
+func (conn *tcpConn) Send(ctx context.Context, frame frame.Frame) error {
 	return nil
 }
 
-func (conn *tcpConn) Receiver() proto.FrameReceiver {
-	return nil
+func (conn *tcpConn) Recv(ctx context.Context) (frame.Frame, error) {
+	return nil, nil
 }

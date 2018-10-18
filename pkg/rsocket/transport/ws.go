@@ -1,10 +1,11 @@
-package client
+package transport
 
 import (
 	"context"
 	"net/http"
 	"net/url"
 
+	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
 	ws "github.com/gorilla/websocket"
 )
@@ -30,10 +31,10 @@ type wsConn struct {
 
 var _ proto.Conn = (*wsConn)(nil)
 
-func (conn *wsConn) Sender() proto.FrameSender {
+func (conn *wsConn) Send(ctx context.Context, frame frame.Frame) error {
 	return nil
 }
 
-func (conn *wsConn) Receiver() proto.FrameReceiver {
-	return nil
+func (conn *wsConn) Recv(ctx context.Context) (frame.Frame, error) {
+	return nil, nil
 }

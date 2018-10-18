@@ -6,73 +6,56 @@ import (
 
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
+	"github.com/flier/rsocket-go/pkg/rsocket/transport"
 )
 
 var (
+	// ErrDisconnected is returned when use a disconnected client
 	ErrDisconnected = errors.New("disconnected")
 )
 
+// Client API
 type Client interface{}
 
 type rSocketClient struct {
-	transport   Transport
+	proto.Conn
+	transport   transport.Transport
 	version     proto.Version
 	resumeToken proto.Token
-	conn        proto.Conn
 	handshaking bool
 }
 
-func newClient(transport Transport, version proto.Version) *rSocketClient {
+func newClient(transport transport.Transport, version proto.Version) *rSocketClient {
 	return &rSocketClient{
+		Conn:        nil,
 		transport:   transport,
 		version:     version,
 		resumeToken: nil,
-		conn:        nil,
 		handshaking: false,
 	}
 }
 
 // Disconnect the underlying transport.
 func (client *rSocketClient) Close() error {
-	if client.conn != nil {
-		return client.conn.Close()
+	if client.Conn != nil {
+		return client.Conn.Close()
 	}
 
 	return nil
 }
 
-func (client *rSocketClient) Connect(ctx context.Context) (err error) {
-	if client.conn != nil {
-		client.conn.Close()
+func (client *rSocketClient) doConnect(ctx context.Context) (err error) {
+	if client.Conn != nil {
+		client.Conn.Close()
 	}
 
-	client.conn, err = client.transport.Connect(ctx)
-
-	go func() error {
-		defer client.Close()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-
-			case f := <-client.conn.Receiver():
-				if err := client.handleFrame(f); err != nil {
-					return err
-				}
-			}
-		}
-	}()
+	client.Conn, err = client.transport.Connect(ctx)
 
 	return
 }
 
-func (client *rSocketClient) handleFrame(frame frame.Frame) error {
-	return nil
-}
-
-func (client *rSocketClient) Setup(ctx context.Context, setup Setup) (err error) {
-	if client.conn == nil {
+func (client *rSocketClient) sendSetup(ctx context.Context, setup Setup) (err error) {
+	if client.Conn == nil {
 		return ErrDisconnected
 	}
 
@@ -80,17 +63,11 @@ func (client *rSocketClient) Setup(ctx context.Context, setup Setup) (err error)
 	client.resumeToken = setup.ResumeToken
 	client.handshaking = setup.Lease
 
-	setupFrame := setup.build()
+	setupFrame := setup.buildFrame()
 
-	client.conn.Sender() <- setupFrame
-
-	return
+	return client.Send(ctx, setupFrame)
 }
 
-// Resumes the client's connection.
-//
-// If the client was previously connected this will attempt a warm-resumption.
-// Otherwise this will attempt a cold-resumption.
-func (client *rSocketClient) Resume() error {
+func (client *rSocketClient) handleFrame(ctx context.Context, f frame.Frame) error {
 	return nil
 }

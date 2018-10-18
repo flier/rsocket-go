@@ -11,11 +11,13 @@ import (
 type FrameSender interface {
 	io.Closer
 
+	// Sends the Frame on this connection and returns the result of this send.
 	Send(ctx context.Context, frame frame.Frame) error
 }
 
 // FrameReceiver receives frame.
 type FrameReceiver interface {
+	// Recv returns a Frame received on this connection.
 	Recv(ctx context.Context) (frame.Frame, error)
 }
 
@@ -53,11 +55,7 @@ func (c frameChan) Recv(ctx context.Context) (frame.Frame, error) {
 
 // Conn is a generic frame-oriented network connection.
 type Conn interface {
-	io.Closer
+	FrameSender
 
-	// Sender sends a frame.
-	Sender() FrameSender
-
-	// Receiver receives a frame.
-	Receiver() FrameReceiver
+	FrameReceiver
 }
