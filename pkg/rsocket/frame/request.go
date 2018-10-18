@@ -387,7 +387,7 @@ func (request *RequestChannelFrame) WriteTo(w io.Writer) (wrote int64, err error
 // RequestNFrame sent to request N more items with Reactive Streams semantics.
 type RequestNFrame struct {
 	*Header
-	Requests uint32
+	N uint32
 }
 
 // NewRequestNFrame creates a new RequestNFrame.
@@ -413,6 +413,10 @@ func readRequestNFrame(r io.Reader, header *Header) (frame *RequestNFrame, err e
 	return
 }
 
+func (request *RequestNFrame) String() string {
+	return fmt.Sprintf("REQUEST_N[%d]", request.N)
+}
+
 // Size returns the encoded size of the frame.
 func (request *RequestNFrame) Size() int {
 	return request.Header.Size() + reqsSize
@@ -428,7 +432,7 @@ func (request *RequestNFrame) WriteTo(w io.Writer) (wrote int64, err error) {
 
 	wrote = n
 
-	if err = binary.Write(w, binary.BigEndian, request.Requests); err != nil {
+	if err = binary.Write(w, binary.BigEndian, request.N); err != nil {
 		return
 	}
 

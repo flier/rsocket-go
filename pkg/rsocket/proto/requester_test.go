@@ -752,9 +752,8 @@ func TestRequestChannelCancelFromRequesterAndResponderTerminates(t *testing.T) {
 					payload, _ := responses.Recv(ctx)
 					So(payload, ShouldResemble, Text("foo"))
 
-					payload, err = responses.Recv(ctx)
+					payload, _ = responses.Recv(ctx)
 					So(payload, ShouldBeNil)
-					So(err, ShouldEqual, context.Canceled)
 				})
 			})
 		}),

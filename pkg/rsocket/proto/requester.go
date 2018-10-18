@@ -427,7 +427,7 @@ func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Fram
 
 		case *frame.RequestNFrame:
 			if sender, ok := requester.findSender(streamID); ok {
-				sender.Requests(f.Requests)
+				sender.Requests(f.N)
 
 				return nil
 			}
