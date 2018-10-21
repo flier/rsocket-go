@@ -8,10 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	. "github.com/smartystreets/goconvey/convey"
 	"go.uber.org/zap"
-
-	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 )
 
 const initReqs = 4
@@ -60,7 +59,7 @@ func (env *testEnv) Serv(wg *sync.WaitGroup) {
 				return nil
 			}
 
-			err = env.requester.handleFrame(env.ctx, f)
+			err = env.requester.HandleFrame(env.ctx, f)
 
 			if err != nil {
 				return err

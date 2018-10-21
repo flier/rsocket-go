@@ -6,10 +6,9 @@ import (
 	"io"
 	"sync"
 
+	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-
-	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 )
 
 const (
@@ -81,6 +80,11 @@ type rSocketRequester struct {
 	senders            *sync.Map
 	receivers          *sync.Map
 }
+
+var (
+	_ Requester    = (*rSocketRequester)(nil)
+	_ FrameHandler = (*rSocketRequester)(nil)
+)
 
 // NewRequester create a new Requester.
 func NewRequester(logger *zap.Logger, frameSender FrameSender, streamIDs StreamIDs, streamRequestLimit uint) Requester {
@@ -361,7 +365,7 @@ func (requester *rSocketRequester) findReceiver(streamID StreamID) (*resultRecei
 	return nil, false
 }
 
-func (requester *rSocketRequester) handleFrame(ctx context.Context, f frame.Frame) error {
+func (requester *rSocketRequester) HandleFrame(ctx context.Context, f frame.Frame) error {
 	frameReceived.With(prometheus.Labels{typeLabel: f.Type().String()}).Inc()
 
 	streamID := f.StreamID()

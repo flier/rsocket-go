@@ -16,6 +16,10 @@ type ResumeFrame struct {
 	FirstAvailable Position // The earliest position that the client can rewind back to prior to resending frames.
 }
 
+func NewResumeFrame(version Version, token Token, lastReceived Position, firstAvailable Position) *ResumeFrame {
+	return &ResumeFrame{&Header{0, TypeResume, 0}, version, token, lastReceived, firstAvailable}
+}
+
 func readResumeFrame(r io.Reader, header *Header) (frame *ResumeFrame, err error) {
 	var major, minor uint16
 	var resumeToken []byte

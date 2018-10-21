@@ -18,7 +18,7 @@ var ErrIncomplete = errors.New("incomplete")
 
 func readExact(r io.Reader, size int) ([]byte, error) {
 	buf := make([]byte, size)
-	n, err := r.Read(buf)
+	n, err := io.ReadFull(r, buf)
 
 	if err != nil {
 		return nil, err

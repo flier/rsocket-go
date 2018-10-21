@@ -17,6 +17,11 @@ type Payload struct {
 	Data        []byte
 }
 
+// Bytes creates a Payload without metadata.
+func Bytes(data []byte) *Payload {
+	return &Payload{false, nil, data}
+}
+
 // Text creates a plain/text Payload without metadata.
 func Text(s string) *Payload {
 	return &Payload{false, nil, []byte(s)}

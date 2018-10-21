@@ -61,15 +61,14 @@ func readPayloadFrame(r io.Reader, header *Header) (frame *PayloadFrame, err err
 }
 
 func (payload *PayloadFrame) String() string {
-	if payload.Next() {
-		if payload.Complete() {
-			return "PAYLOAD[COMPLETE]"
-		}
-
+	switch {
+	case payload.Next() && payload.Complete():
+		return "PAYLOAD[COMPLETE]"
+	case payload.Next():
 		return "PAYLOAD"
-	} else if payload.Complete() {
+	case payload.Complete():
 		return "COMPLETE"
-	} else {
+	default:
 		return "PAYLOAD[NULL]"
 	}
 }

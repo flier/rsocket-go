@@ -7,10 +7,13 @@ import (
 // Version number of the protocol.
 type Version = frame.Version
 
+var LatestVersion = frame.V1
+
 // Token used for client resume identification.
 type Token = frame.Token
 
 // Error of the protocol
 type Error = frame.Error
 
-var LatestVersion = frame.V1
+// Position in the stream.
+type Position = frame.Position

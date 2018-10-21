@@ -4,10 +4,9 @@ import (
 	"context"
 	"net"
 
-	"go.uber.org/zap"
-
 	"github.com/flier/rsocket-go/pkg/rsocket/frame"
 	"github.com/flier/rsocket-go/pkg/rsocket/proto"
+	"go.uber.org/zap"
 )
 
 type tcpTransport struct {
@@ -53,7 +52,11 @@ func (conn *tcpConn) Send(ctx context.Context, f frame.Frame) error {
 func (conn *tcpConn) Recv(ctx context.Context) (frame.Frame, error) {
 	f, err := conn.ReadFrame()
 
-	conn.Info("received frame", zap.Stringer("type", f.Type()), zap.Stringer("stream", f.StreamID()))
+	if err != nil {
+		conn.Info("receive frame failed", zap.Error(err))
+	} else {
+		conn.Info("received frame", zap.Stringer("type", f.Type()), zap.Stringer("stream", f.StreamID()))
+	}
 
 	bytesRecv.Add(float64(f.Size()))
 

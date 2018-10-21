@@ -12,8 +12,8 @@ const (
 	FlagResumeEnable Flags = 0x0080
 	// FlagLease indicates the requester will honor LEASE (or not).
 	FlagLease Flags = 0x0040
-	// FlagKeepaliveRespond indicates respond with KEEPALIVE or not.
-	FlagKeepaliveRespond Flags = 0x0080
+	// FlagRespond indicates respond with KEEPALIVE or not.
+	FlagRespond Flags = 0x0080
 	// FlagFollows indicates more fragments follow this fragment.
 	FlagFollows Flags = 0x0080
 	// FlagComplete indicates stream completion.
@@ -28,6 +28,6 @@ func (flags *Flags) Set(flag Flags) {
 }
 
 // IsSet returns the flag is set or not.
-func (flags *Flags) IsSet(flag Flags) bool {
-	return *flags&flag == flag
+func (flags Flags) IsSet(flag Flags) bool {
+	return flags&flag == flag
 }

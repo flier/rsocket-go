@@ -60,6 +60,46 @@ func (header *Header) Flags() Flags {
 	return header.flags
 }
 
+// CanIgnore indicates the protocol can ignore frame if not understood
+func (header *Header) CanIgnore() bool {
+	return header.flags.IsSet(FlagIgnore)
+}
+
+// HasMetadata indicates the metadata present
+func (header *Header) HasMetadata() bool {
+	return header.flags.IsSet(FlagMetadata)
+}
+
+// HasResumeToken indicates the resume identification token present.
+func (header *Header) HasResumeToken() bool {
+	return header.flags.IsSet(FlagResumeEnable)
+}
+
+// Lease indicates the requester will honor LEASE (or not).
+func (header *Header) Lease() bool {
+	return header.flags.IsSet(FlagLease)
+}
+
+// Respond indicates respond with KEEPALIVE or not.
+func (header *Header) NeedRespond() bool {
+	return header.flags.IsSet(FlagRespond)
+}
+
+// Follows indicates more fragments follow this fragment.
+func (header *Header) Follows() bool {
+	return header.flags.IsSet(FlagFollows)
+}
+
+// Complete indicates stream completion.
+func (header *Header) Complete() bool {
+	return header.flags.IsSet(FlagComplete)
+}
+
+// Next indicates the payload data and/or metadata present.
+func (header *Header) Next() bool {
+	return header.flags.IsSet(FlagNext)
+}
+
 func (header *Header) String() string {
 	return header.frameType.String()
 }
@@ -82,29 +122,4 @@ func (header *Header) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return headerSize, nil
-}
-
-// CanIgnore indicates the protocol can ignore frame if not understood
-func (header *Header) CanIgnore() bool {
-	return header.flags.IsSet(FlagIgnore)
-}
-
-// HasMetadata indicates the metadata present
-func (header *Header) HasMetadata() bool {
-	return header.flags.IsSet(FlagMetadata)
-}
-
-// HasResumeToken indicates the resume identification token present.
-func (header *Header) HasResumeToken() bool {
-	return header.flags.IsSet(FlagResumeEnable)
-}
-
-// Next indicates the payload data and/or metadata present.
-func (header *Header) Next() bool {
-	return header.flags.IsSet(FlagNext)
-}
-
-// Complete indicates stream completion.
-func (header *Header) Complete() bool {
-	return header.flags.IsSet(FlagComplete)
 }

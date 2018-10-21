@@ -18,6 +18,20 @@ type KeepaliveFrame struct {
 	Data         []byte
 }
 
+func NewKeepaliveFrame(needRespond bool, lastReceived Position, data []byte) *KeepaliveFrame {
+	var flags Flags
+
+	if needRespond {
+		flags.Set(FlagRespond)
+	}
+
+	return &KeepaliveFrame{
+		&Header{0, TypeKeepalive, flags},
+		lastReceived,
+		data,
+	}
+}
+
 func readKeepaliveFrame(r io.Reader, header *Header) (frame *KeepaliveFrame, err error) {
 	var lastReceived uint64
 	var data []byte

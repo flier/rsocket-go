@@ -21,20 +21,24 @@ type FrameReceiver interface {
 	Recv(ctx context.Context) (frame.Frame, error)
 }
 
-type frameChan chan frame.Frame
+type FrameHandler interface {
+	HandleFrame(ctx context.Context, f frame.Frame) error
+}
 
-var _ FrameSender = frameChan(nil)
-var _ FrameReceiver = frameChan(nil)
+type FrameChan chan frame.Frame
+
+var _ FrameSender = FrameChan(nil)
+var _ FrameReceiver = FrameChan(nil)
 
 // Close the thanncel
-func (c frameChan) Close() error {
+func (c FrameChan) Close() error {
 	close(c)
 
 	return nil
 }
 
 // Send frame to channel
-func (c frameChan) Send(ctx context.Context, frame frame.Frame) error {
+func (c FrameChan) Send(ctx context.Context, frame frame.Frame) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -44,7 +48,7 @@ func (c frameChan) Send(ctx context.Context, frame frame.Frame) error {
 }
 
 // Recv frame from channel
-func (c frameChan) Recv(ctx context.Context) (frame.Frame, error) {
+func (c FrameChan) Recv(ctx context.Context) (frame.Frame, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
