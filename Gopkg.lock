@@ -3,6 +3,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:26553bdecb5d2155e37185e91ac9e6cab762c06fdf231c151fb6d3ec60ff53b7"
+  name = "github.com/2tvenom/cbor"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "384e799bd841fc59220d0f5911b8cbde7b380875"
+
+[[projects]]
+  branch = "master"
   digest = "1:739c9ec359b9f06cf0fd0cd40dfb609340225956935595625419ed5e414f345a"
   name = "github.com/Bowery/prompt"
   packages = ["."]
@@ -125,7 +133,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c0d39a0cad193ac49b6e24516e0f994b241d7c27142e5a58e8bd13defb2d9ac8"
+  digest = "1:db712fde5d12d6cdbdf14b777f0c230f4ff5ab0be8e35b239fc319953ed577a4"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -133,7 +141,7 @@
     "model",
   ]
   pruneopts = "UT"
-  revision = "bcb74de08d37a417cb6789eec1d6c810040f0470"
+  revision = "7e9e6cabbd393fc208072eedef99188d0ce788b6"
 
 [[projects]]
   branch = "master"
@@ -205,16 +213,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0a40b0bdd57a93e741d8557465be3a2edeec408e9b6399586ad65bbe8e355796"
+  digest = "1:d99359caa06128f971c1b1373e8c6c4221ed74f07840e66d660006f0c2df0ed6"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
+  revision = "8b8824e799c8fc8e6d900615cc6c761ce6c26c67"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/2tvenom/cbor",
     "github.com/gorilla/websocket",
     "github.com/mkideal/cli",
     "github.com/mkideal/cli/ext",
