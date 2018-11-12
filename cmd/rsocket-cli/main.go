@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Opts struct {
+type options struct {
 	cli.Helper
 
 	Headers         map[string]string `cli:"H, header" name:"name=value" usage:"Request Response"`
@@ -44,7 +44,7 @@ type Opts struct {
 }
 
 // Validate check the command line options
-func (opts *Opts) Validate(ctx *cli.Context) error {
+func (opts *options) Validate(ctx *cli.Context) error {
 	if ctx.NArg() == 0 {
 		return errors.New("missing target URL")
 	}
@@ -56,7 +56,7 @@ func (opts *Opts) Validate(ctx *cli.Context) error {
 	return nil
 }
 
-func (opts *Opts) parseSetupData() (*proto.Payload, error) {
+func (opts *options) parseSetupData() (*proto.Payload, error) {
 	switch {
 	case strings.HasPrefix(opts.Setup, "@"):
 		data, err := ioutil.ReadFile(opts.Setup[1:])
@@ -75,7 +75,7 @@ func (opts *Opts) parseSetupData() (*proto.Payload, error) {
 	}
 }
 
-func (opts *Opts) buildMetadata() (proto.Metadata, error) {
+func (opts *options) buildMetadata() (proto.Metadata, error) {
 	if len(opts.Metadata) > 0 {
 		return proto.Metadata(opts.Metadata), nil
 	}
@@ -112,7 +112,7 @@ func (opts *Opts) buildMetadata() (proto.Metadata, error) {
 	return nil, nil
 }
 
-func (opts *Opts) PayloadStream(ctx context.Context) *proto.PayloadStream {
+func (opts *options) buildPayloadStream(ctx context.Context) *proto.PayloadStream {
 	c := make(chan *proto.Result)
 
 	go func() error {
@@ -174,10 +174,10 @@ func (opts *Opts) PayloadStream(ctx context.Context) *proto.PayloadStream {
 }
 
 func main() {
-	cli.Run(new(Opts), func(cmdline *cli.Context) (err error) {
+	cli.Run(new(options), func(cmdline *cli.Context) (err error) {
 		var rootLogger *zap.Logger
 
-		opts := cmdline.Argv().(*Opts)
+		opts := cmdline.Argv().(*options)
 
 		if opts.Debug {
 			rootLogger, err = zap.NewDevelopment()
@@ -195,11 +195,11 @@ func main() {
 
 		var target *url.URL
 
-		targetUri := cmdline.Args()[0]
-		target, err = url.Parse(targetUri)
+		targetURI := cmdline.Args()[0]
+		target, err = url.Parse(targetURI)
 
 		if err != nil {
-			logger.Error("invalid target URI", zap.String("uri", targetUri), zap.Error(err))
+			logger.Error("invalid target URI", zap.String("uri", targetURI), zap.Error(err))
 
 			return
 		}
@@ -239,7 +239,7 @@ func main() {
 
 			switch {
 			case opts.FireAndForget:
-				payload, err := opts.PayloadStream(ctx).Recv(ctx)
+				payload, err := opts.buildPayloadStream(ctx).Recv(ctx)
 
 				if err != nil {
 					return err
@@ -251,7 +251,7 @@ func main() {
 				return requester.MetadataPush(ctx, proto.Metadata(opts.Metadata))
 
 			case opts.RequestResponse:
-				payload, err := opts.PayloadStream(ctx).Recv(ctx)
+				payload, err := opts.buildPayloadStream(ctx).Recv(ctx)
 
 				if err != nil {
 					return err
@@ -266,7 +266,7 @@ func main() {
 				println(payload.Text())
 
 			case opts.Stream:
-				payload, err := opts.PayloadStream(ctx).Recv(ctx)
+				payload, err := opts.buildPayloadStream(ctx).Recv(ctx)
 
 				if err != nil {
 					return err
@@ -293,7 +293,7 @@ func main() {
 				}
 
 			case opts.Channel:
-				responses, err := requester.RequestChannel(ctx, opts.PayloadStream(ctx))
+				responses, err := requester.RequestChannel(ctx, opts.buildPayloadStream(ctx))
 
 				if err != nil {
 					return err
