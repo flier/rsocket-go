@@ -164,7 +164,7 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 	streamID := requester.streamIDs.Next()
 	receiver := requester.newResultReceiver(streamID, 1)
 
-	request := buildRequestResponseFrame(streamID, payload)
+	request := payload.buildRequestResponseFrame(streamID)
 	if err := requester.sendFrame(ctx, request); err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (requester *rSocketRequester) RequestResponse(ctx context.Context, payload 
 func (requester *rSocketRequester) FireAndForget(ctx context.Context, payload *Payload) error {
 	streamID := requester.streamIDs.Next()
 
-	return requester.sendFrame(ctx, buildRequestFireAndForgetFrame(streamID, payload))
+	return requester.sendFrame(ctx, payload.buildRequestFireAndForgetFrame(streamID))
 }
 
 func (requester *rSocketRequester) MetadataPush(ctx context.Context, metadata Metadata) (err error) {
@@ -193,7 +193,7 @@ func (requester *rSocketRequester) RequestStream(ctx context.Context, payload *P
 	initReqs := requester.streamRequestLimit
 	receiver := requester.newResultReceiver(streamID, initReqs)
 
-	request := buildRequestStreamFrame(streamID, uint32(initReqs), payload)
+	request := payload.buildRequestStreamFrame(streamID, uint32(initReqs))
 	if err := requester.sendFrame(ctx, request); err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 		}
 	}
 
-	requestChannelFrame := buildRequestChannelFrame(streamID, complete, uint32(initReqs), payload)
+	requestChannelFrame := payload.buildRequestChannelFrame(streamID, complete, uint32(initReqs))
 
 	if err := requester.sendFrame(ctx, requestChannelFrame); err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (requester *rSocketRequester) RequestChannel(ctx context.Context, payloads 
 					return requester.sendError(ctx, streamID, err)
 				}
 
-				payloadFrame := buildPayloadFrame(streamID, false, payload)
+				payloadFrame := payload.buildPayloadFrame(streamID, false)
 
 				if err := requester.sendFrame(ctx, payloadFrame); err != nil {
 					return requester.sendError(ctx, streamID, err)

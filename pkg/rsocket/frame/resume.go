@@ -16,6 +16,7 @@ type ResumeFrame struct {
 	FirstAvailable Position // The earliest position that the client can rewind back to prior to resending frames.
 }
 
+// NewResumeFrame create a new ResumeFrame.
 func NewResumeFrame(version Version, token Token, lastReceived Position, firstAvailable Position) *ResumeFrame {
 	return &ResumeFrame{&Header{0, TypeResume, 0}, version, token, lastReceived, firstAvailable}
 }

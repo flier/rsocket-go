@@ -18,6 +18,7 @@ type KeepaliveFrame struct {
 	Data         []byte
 }
 
+// NewKeepaliveFrame create a new KeepaliveFrame.
 func NewKeepaliveFrame(needRespond bool, lastReceived Position, data []byte) *KeepaliveFrame {
 	var flags Flags
 

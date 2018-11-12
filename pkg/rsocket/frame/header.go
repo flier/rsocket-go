@@ -80,7 +80,7 @@ func (header *Header) Lease() bool {
 	return header.flags.IsSet(FlagLease)
 }
 
-// Respond indicates respond with KEEPALIVE or not.
+// NeedRespond indicates respond with KEEPALIVE or not.
 func (header *Header) NeedRespond() bool {
 	return header.flags.IsSet(FlagRespond)
 }

@@ -126,19 +126,19 @@ func (s *PayloadSink) Send(ctx context.Context, result *Result) error {
 	}
 }
 
-func buildRequestResponseFrame(streamID StreamID, payload *Payload) *frame.RequestResponseFrame {
+func (payload *Payload) buildRequestResponseFrame(streamID StreamID) *frame.RequestResponseFrame {
 	return frame.NewRequestResponseFrame(streamID, false, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func buildRequestFireAndForgetFrame(streamID StreamID, payload *Payload) *frame.RequestFireAndForgetFrame {
+func (payload *Payload) buildRequestFireAndForgetFrame(streamID StreamID) *frame.RequestFireAndForgetFrame {
 	return frame.NewRequestFireAndForgetFrame(streamID, false, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func buildRequestStreamFrame(streamID StreamID, initReqs uint32, payload *Payload) *frame.RequestStreamFrame {
+func (payload *Payload) buildRequestStreamFrame(streamID StreamID, initReqs uint32) *frame.RequestStreamFrame {
 	return frame.NewRequestStreamFrame(streamID, false, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func buildRequestChannelFrame(streamID StreamID, complete bool, initReqs uint32, payload *Payload) *frame.RequestChannelFrame {
+func (payload *Payload) buildRequestChannelFrame(streamID StreamID, complete bool, initReqs uint32) *frame.RequestChannelFrame {
 	if payload == nil {
 		return frame.NewRequestChannelFrame(streamID, false, complete, initReqs, false, nil, nil)
 	}
@@ -146,7 +146,7 @@ func buildRequestChannelFrame(streamID StreamID, complete bool, initReqs uint32,
 	return frame.NewRequestChannelFrame(streamID, false, complete, initReqs, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
-func buildPayloadFrame(streamID StreamID, complete bool, payload *Payload) *frame.PayloadFrame {
+func (payload *Payload) buildPayloadFrame(streamID StreamID, complete bool) *frame.PayloadFrame {
 	return frame.NewPayloadFrame(streamID, false, complete, true, payload.HasMetadata, payload.Metadata, payload.Data)
 }
 
