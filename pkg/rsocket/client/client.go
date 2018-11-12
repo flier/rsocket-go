@@ -20,27 +20,27 @@ var (
 
 // Client API
 type Client interface {
-	io.Closer
-
-	Requester() proto.Requester
+	proto.Requester
 }
 
 type rSocketClient struct {
 	*Dialer
+	proto.Requester
 	transport                  transport.Transport
 	streamIDs                  proto.StreamIDs
 	cancel                     context.CancelFunc
-	requester                  proto.Requester
 	c                          *sync.Cond
 	LastReceivedClientPosition proto.Position
 }
 
+var _ Client = (*rSocketClient)(nil)
+
 func newClient(opts *Dialer, transport transport.Transport) *rSocketClient {
 	return &rSocketClient{
 		opts,
+		nil,
 		transport,
 		proto.ClientStreamIDs(),
-		nil,
 		nil,
 		sync.NewCond(new(sync.Mutex)),
 		0,
@@ -54,17 +54,6 @@ func (client *rSocketClient) Close() error {
 	}
 
 	return nil
-}
-
-func (client *rSocketClient) Requester() proto.Requester {
-	client.c.L.Lock()
-	defer client.c.L.Unlock()
-
-	for client.requester == nil {
-		client.c.Wait()
-	}
-
-	return client.requester
 }
 
 func (client *rSocketClient) Serve(ctx context.Context) (err error) {
@@ -269,9 +258,9 @@ func (state *handleFramesState) String() string {
 }
 
 func (state *handleFramesState) Next(ctx context.Context, client *rSocketClient) (next State, err error) {
-	if client.requester == nil {
+	if client.Requester == nil {
 		client.c.L.Lock()
-		client.requester = proto.NewRequester(client.Logger, state.Conn, client.streamIDs, client.StreamRequestLimit)
+		client.Requester = proto.NewRequester(client.Logger, state.Conn, client.streamIDs, client.StreamRequestLimit)
 		client.c.L.Unlock()
 
 		client.c.Broadcast()
@@ -285,7 +274,7 @@ func (state *handleFramesState) Next(ctx context.Context, client *rSocketClient)
 		}
 	}
 
-	if err = client.requester.(proto.FrameHandler).HandleFrame(ctx, f); err != nil {
+	if err = client.Requester.(proto.FrameHandler).HandleFrame(ctx, f); err != nil {
 		return
 	}
 

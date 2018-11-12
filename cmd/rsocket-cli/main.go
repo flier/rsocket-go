@@ -56,6 +56,35 @@ func (opts *options) Validate(ctx *cli.Context) error {
 	return nil
 }
 
+func (opts *options) configureLogging() (logger *zap.Logger, err error) {
+	if opts.Debug {
+		logger, err = zap.NewDevelopment()
+		frame.ReadFrameDumper = os.Stdout
+		frame.WriteFrameDumper = os.Stdout
+	} else {
+		logger, err = zap.NewProduction()
+	}
+
+	return
+}
+
+func (opts *options) buildClient(ctx context.Context, logger *zap.Logger, target *url.URL) (client.Client, error) {
+	setupPayload, err := opts.parseSetupData()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return client.DialContext(ctx, target,
+		client.WithLogger(logger),
+		client.WithKeepalive(opts.Keepalive.Duration),
+		client.WithMaxLifetime(opts.Keepalive.Duration*2),
+		client.WithMetadataMimeType(opts.MetadataFmt),
+		client.WithDataMimeType(opts.DataFmt),
+		client.WithSetupPayload(setupPayload),
+	)
+}
+
 func (opts *options) parseSetupData() (*proto.Payload, error) {
 	switch {
 	case strings.HasPrefix(opts.Setup, "@"):
@@ -175,32 +204,25 @@ func (opts *options) buildPayloadStream(ctx context.Context) *proto.PayloadStrea
 
 func main() {
 	cli.Run(new(options), func(cmdline *cli.Context) (err error) {
-		var rootLogger *zap.Logger
-
 		opts := cmdline.Argv().(*options)
 
-		if opts.Debug {
-			rootLogger, err = zap.NewDevelopment()
-			frame.ReadFrameDumper = os.Stdout
-			frame.WriteFrameDumper = os.Stdout
-		} else {
-			rootLogger, err = zap.NewProduction()
-		}
-
-		logger := rootLogger.Named("main")
-
+		// initial logging
+		rootLogger, err := opts.configureLogging()
 		if err != nil {
 			return
 		}
+		defer rootLogger.Sync()
 
+		logger := rootLogger.Named("main")
+		defer logger.Sync()
+
+		// parse target URI
 		var target *url.URL
 
 		targetURI := cmdline.Args()[0]
 		target, err = url.Parse(targetURI)
-
 		if err != nil {
 			logger.Error("invalid target URI", zap.String("uri", targetURI), zap.Error(err))
-
 			return
 		}
 
@@ -212,30 +234,12 @@ func main() {
 		if opts.Server {
 
 		} else {
-			setupPayload, err := opts.parseSetupData()
-
-			if err != nil {
-				return err
-			}
-
-			client, err := client.DialContext(ctx, target,
-				client.WithLogger(rootLogger),
-				client.WithKeepalive(opts.Keepalive.Duration),
-				client.WithMaxLifetime(opts.Keepalive.Duration*2),
-				client.WithMetadataMimeType(opts.MetadataFmt),
-				client.WithDataMimeType(opts.DataFmt),
-				client.WithSetupPayload(setupPayload),
-			)
-
+			client, err := opts.buildClient(ctx, rootLogger, target)
 			if err != nil {
 				logger.Error("fail to connect RSocket server", zap.Stringer("target", target), zap.Error(err))
-
 				return err
 			}
-
 			logger.Debug("connected to RSocket server", zap.Stringer("target", target), zap.Reflect("client", client))
-
-			requester := client.Requester()
 
 			switch {
 			case opts.FireAndForget:
@@ -245,10 +249,10 @@ func main() {
 					return err
 				}
 
-				return requester.FireAndForget(ctx, payload)
+				return client.FireAndForget(ctx, payload)
 
 			case opts.MetadataPush:
-				return requester.MetadataPush(ctx, proto.Metadata(opts.Metadata))
+				return client.MetadataPush(ctx, proto.Metadata(opts.Metadata))
 
 			case opts.RequestResponse:
 				payload, err := opts.buildPayloadStream(ctx).Recv(ctx)
@@ -257,7 +261,7 @@ func main() {
 					return err
 				}
 
-				payload, err = requester.RequestResponse(ctx, payload)
+				payload, err = client.RequestResponse(ctx, payload)
 
 				if err != nil {
 					return err
@@ -272,7 +276,7 @@ func main() {
 					return err
 				}
 
-				responses, err := requester.RequestStream(ctx, payload)
+				responses, err := client.RequestStream(ctx, payload)
 
 				if err != nil {
 					return err
@@ -293,7 +297,7 @@ func main() {
 				}
 
 			case opts.Channel:
-				responses, err := requester.RequestChannel(ctx, opts.buildPayloadStream(ctx))
+				responses, err := client.RequestChannel(ctx, opts.buildPayloadStream(ctx))
 
 				if err != nil {
 					return err
